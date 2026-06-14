@@ -1,15 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { Alert, Platform } from 'react-native';
-import {
-  mediaDevices,
-  RTCPeerConnection,
-  RTCSessionDescription,
-  RTCIceCandidate,
-  MediaStream,
-} from 'react-native-webrtc';
 import { connectCallSocket, getCallSocket } from '../services/socket';
 import { useAuth } from './AuthContext';
 import { Socket } from 'socket.io-client';
+
+function requireWebRTC() {
+  if (Platform.OS === 'web') return null;
+  try {
+    return require('react-native-webrtc');
+  } catch {
+    return null;
+  }
+}
 
 interface CallUser {
   id: number;
@@ -45,7 +47,7 @@ interface CallContextType {
   isMuted: boolean;
   isSpeakerOn: boolean;
   isVideoOn: boolean;
-  localStream: MediaStream | null;
+  localStream: any | null;
 }
 
 const CallContext = createContext<CallContextType>({} as CallContextType);
@@ -65,7 +67,7 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [localStream, setLocalStream] = useState<any | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -128,7 +130,10 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const createPeerConnection = async () => {
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+    const webrtc = requireWebRTC();
+    if (!webrtc) return null;
+    const { RTCPeerConnection: RTC } = webrtc;
+    const pc = new RTC(ICE_SERVERS);
     pcRef.current = pc;
 
     pc.onicecandidate = (event) => {
@@ -146,7 +151,10 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
       setCall((prev) => ({ ...prev, status: 'active' }));
     };
 
-    const stream = await mediaDevices.getUserMedia({
+    const webrtc = requireWebRTC();
+    if (!webrtc) return null;
+
+    const stream = await webrtc.mediaDevices.getUserMedia({
       audio: true,
       video: call.type === 'video',
     });
@@ -162,9 +170,12 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleRemoteOffer = async (callId: number, sdpString: string) => {
+    const webrtc = requireWebRTC();
+    if (!webrtc) return;
     try {
       const pc = await createPeerConnection();
-      await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(sdpString)));
+      if (!pc) return;
+      await pc.setRemoteDescription(new webrtc.RTCSessionDescription(JSON.parse(sdpString)));
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -175,18 +186,22 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleRemoteAnswer = async (sdpString: string) => {
+    const webrtc = requireWebRTC();
+    if (!webrtc) return;
     try {
       if (!pcRef.current) return;
       await pcRef.current.setRemoteDescription(
-        new RTCSessionDescription(JSON.parse(sdpString)),
+        new webrtc.RTCSessionDescription(JSON.parse(sdpString)),
       );
     } catch {}
   };
 
   const handleRemoteIceCandidate = async (candidateString: string) => {
+    const webrtc = requireWebRTC();
+    if (!webrtc) return;
     try {
       if (!pcRef.current) return;
-      await pcRef.current.addIceCandidate(new RTCIceCandidate(JSON.parse(candidateString)));
+      await pcRef.current.addIceCandidate(new webrtc.RTCIceCandidate(JSON.parse(candidateString)));
     } catch {}
   };
 

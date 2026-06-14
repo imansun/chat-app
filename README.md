@@ -302,6 +302,7 @@ npx expo start          # Scan QR with Expo Go
 | 5 | ✅ Done | Dark mode, stories, voice messages, theme toggle |
 | 6 | ✅ Done | WebRTC signaling, audio/video calls, call history |
 | 7 | ✅ Done | End-to-end encryption (NaCl box), key management |
+| 8 | ✅ Done | React Native Web, PWA (service worker + manifest), web polyfills |
 
 ---
 
@@ -336,3 +337,14 @@ npx expo start          # Scan QR with Expo Go
 - **Active Call Management** — Server tracks active calls, prevents duplicate calls, handles missed/rejected/ended states.
 - **Mobile WebRTC** — `CallContext` manages peer connection lifecycle via `react-native-webrtc`; `IncomingCallScreen` (ringing UI with accept/reject) and `ActiveCallScreen` (mute, speaker, video toggle, end call) rendered as overlays.
 - **Call Buttons** — Audio and video call buttons in ChatScreen header for 1-on-1 chats.
+
+---
+
+## Phase 8 Notes
+
+- **React Native Web** — App runs in the browser via `npx expo start --web` using `react-dom`, `@expo/metro-runtime`.
+- **PWA Support** — `manifest.json` (display standalone, theme_color, icons), `sw.js` (cache-first service worker for offline assets), `index.html` with apple-mobile-web-app meta tags.
+- **Web Polyfills** — `webStorage.ts` wraps `expo-secure-store` with `localStorage` fallback for web; all SecureStore imports replaced with the polyfill.
+- **Platform Guards** — `expo-av` (voice recording/playback) and `react-native-webrtc` (calls) are dynamically required only on native platforms; web shows alerts or uses browser native APIs (e.g., `new Audio()` for voice playback).
+- **Responsive Layout** — `KeyboardAvoidingView` behavior adjusted per platform; `Platform.OS` checks throughout for web-safe rendering.
+- **Web Entry** — `public/index.html` as root, auto-registers service worker; `public/sw.js` for caching static assets.

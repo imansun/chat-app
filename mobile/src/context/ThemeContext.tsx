@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import { getItem, setItem } from '../services/webStorage';
 
 export interface ThemeColors {
   background: string;
@@ -69,7 +69,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    SecureStore.getItemAsync('theme').then((val) => {
+    getItem('theme').then((val) => {
       if (val === 'dark') setIsDark(true);
     });
   }, []);
@@ -77,7 +77,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const toggleTheme = async () => {
     const next = !isDark;
     setIsDark(next);
-    await SecureStore.setItemAsync('theme', next ? 'dark' : 'light');
+    await setItem('theme', next ? 'dark' : 'light');
   };
 
   const colors = isDark ? darkColors : lightColors;

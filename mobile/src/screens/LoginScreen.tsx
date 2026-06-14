@@ -38,7 +38,7 @@ export default function LoginScreen({ navigation }: any) {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.primary }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
     >
       <View style={styles.header}>
         <Text style={[styles.logo]}>{'>'} Chat App</Text>

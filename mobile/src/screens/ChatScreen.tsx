@@ -14,7 +14,6 @@ import {
   Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -250,7 +249,12 @@ export default function ChatScreen({ route }: any) {
   };
 
   const startRecording = async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert('Not available', 'Voice recording is not supported on web');
+      return;
+    }
     try {
+      const { Audio } = require('expo-av');
       const perm = await Audio.requestPermissionsAsync();
       if (!perm.granted) {
         Alert.alert('Permission needed', 'Allow microphone access to record voice');
@@ -293,7 +297,13 @@ export default function ChatScreen({ route }: any) {
   };
 
   const playVoice = async (messageId: number, audioUrl: string) => {
+    if (Platform.OS === 'web') {
+      const audio = new window.Audio(audioUrl);
+      audio.play().catch(() => {});
+      return;
+    }
     try {
+      const { Audio } = require('expo-av');
       if (playingAudio === messageId) {
         await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
         setPlayingAudio(null);
@@ -474,7 +484,7 @@ export default function ChatScreen({ route }: any) {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'web' ? undefined : undefined}
     >
       <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
         <View style={styles.headerInfo}>

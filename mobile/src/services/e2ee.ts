@@ -1,5 +1,5 @@
 import { Buffer } from 'buffer';
-import * as SecureStore from 'expo-secure-store';
+import { getItem, setItem } from './webStorage';
 import nacl from 'tweetnacl';
 import { encodeBase64, decodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
 import { keyApi } from './api';
@@ -21,13 +21,13 @@ export async function generateKeyPair(): Promise<KeyPair> {
 }
 
 export async function storeKeyPair(keys: KeyPair): Promise<void> {
-  await SecureStore.setItemAsync(PRIVATE_KEY_KEY, keys.secretKey);
-  await SecureStore.setItemAsync(PUBLIC_KEY_KEY, keys.publicKey);
+  await setItem(PRIVATE_KEY_KEY, keys.secretKey);
+  await setItem(PUBLIC_KEY_KEY, keys.publicKey);
 }
 
 export async function getKeyPair(): Promise<KeyPair | null> {
-  const secretKey = await SecureStore.getItemAsync(PRIVATE_KEY_KEY);
-  const publicKey = await SecureStore.getItemAsync(PUBLIC_KEY_KEY);
+  const secretKey = await getItem(PRIVATE_KEY_KEY);
+  const publicKey = await getItem(PUBLIC_KEY_KEY);
   if (!secretKey || !publicKey) return null;
   return { publicKey, secretKey };
 }

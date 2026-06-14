@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "backgroundColor": "#075E54"
     },
@@ -18,6 +18,22 @@
         "backgroundColor": "#075E54"
       },
       "package": "com.chatapp.mobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "scope": "/",
+      "startPath": "/",
+      "display": "standalone",
+      "lang": "en-US",
+      "meta": {
+        "description": "Real-time chat application with E2EE"
+      },
+      "builder": "expo",
+      "backgroundColor": "#111b21",
+      "themeColor": "#075E54",
+      "shortName": "Chat App"
     },
     "plugins": [
       "expo-secure-store"

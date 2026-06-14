@@ -1,8 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { RTCView } from 'react-native-webrtc';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCall } from '../context/CallContext';
+
+let RTCView: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    RTCView = require('react-native-webrtc').RTCView;
+  } catch {}
+}
 
 export default function ActiveCallScreen() {
   const {
