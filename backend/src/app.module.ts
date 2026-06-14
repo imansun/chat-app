@@ -15,6 +15,7 @@ import { StoriesModule } from './stories/stories.module';
 import { CallModule } from './call/call.module';
 import { CallGatewayModule } from './call-gateway/call-gateway.module';
 import { KeysModule } from './keys/keys.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { KeysModule } from './keys/keys.module';
     CallModule,
     CallGatewayModule,
     KeysModule,
+    NotificationsModule,
   ],
   providers: [
     {

@@ -8,6 +8,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { WsJwtGuard } from '../common/guards/ws-jwt.guard';
 import { CallService } from '../call/call.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CallStatus, CallType } from '../call/entities/call.entity';
 import { Logger } from '@nestjs/common';
 
@@ -25,6 +26,7 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private wsJwtGuard: WsJwtGuard,
     private callService: CallService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -79,6 +81,16 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
       caller: { id: user.id, username: user.username, avatar: user.avatar },
       type: payload.type,
     });
+
+    if (!this.onlineUsers.has(payload.targetUserId)) {
+      const typeLabel = payload.type === 'video' ? '📹 Video call' : '📞 Audio call';
+      await this.notificationsService.notifyUser(
+        payload.targetUserId,
+        user.username,
+        typeLabel,
+        { callId: String(call.id), type: 'call' },
+      );
+    }
 
     client.emit('call:initiated', { callId: call.id });
   }

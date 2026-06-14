@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { getItem, setItem, deleteItem } from '../services/webStorage';
 import { authApi, AuthResponse, User } from '../services/api';
 import { ensureKeys } from '../services/e2ee';
+import { registerForPushNotificationsAsync, sendPushTokenToServer } from '../services/notifications';
 
 interface AuthContextType {
   user: User | null;
@@ -58,12 +59,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data } = await authApi.login({ username, password });
     await saveAuth(data);
     await initE2EE(data.user.id);
+    registerPushToken();
   };
 
   const register = async (username: string, email: string, password: string) => {
     const { data } = await authApi.register({ username, email, password });
     await saveAuth(data);
     await initE2EE(data.user.id);
+    registerPushToken();
+  };
+
+  const registerPushToken = async () => {
+    try {
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        await sendPushTokenToServer(token);
+      }
+    } catch {}
   };
 
   const logout = async () => {

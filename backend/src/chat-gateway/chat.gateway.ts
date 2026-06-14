@@ -10,6 +10,7 @@ import { WsJwtGuard } from '../common/guards/ws-jwt.guard';
 import { MessagesService } from '../messages/messages.service';
 import { ChatService } from '../chat/chat.service';
 import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Logger } from '@nestjs/common';
 
 function isValidPayload(value: any, fields: string[]): boolean {
@@ -41,6 +42,7 @@ export class ChatGateway
     private messagesService: MessagesService,
     private chatService: ChatService,
     private usersService: UsersService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -108,6 +110,8 @@ export class ChatGateway
     );
 
     this.server.to(`room:${payload.roomId}`).emit('message:new', populated[0]);
+
+    this.trySendPushNotification(payload.roomId, user, populated[0]?.content || payload.content, 'message');
   }
 
   @SubscribeMessage('message:edit')
@@ -170,6 +174,8 @@ export class ChatGateway
     );
 
     this.server.to(`room:${payload.roomId}`).emit('message:new', populated[0]);
+
+    this.trySendPushNotification(payload.roomId, user, '📷 Image', 'image');
   }
 
   @SubscribeMessage('room:join')
@@ -217,5 +223,29 @@ export class ChatGateway
     client
       .to(`room:${payload.roomId}`)
       .emit('typing:stop', { userId: client.data.user.id, ...payload });
+  }
+
+  private async trySendPushNotification(
+    roomId: number,
+    sender: { id: number; username: string },
+    content: string,
+    type: string,
+  ) {
+    try {
+      const room = await this.chatService.getRoomById(roomId, sender.id);
+      if (room.isGroup) return;
+
+      const recipient = room.participants.find((p) => p.id !== sender.id);
+      if (!recipient) return;
+
+      if (this.onlineUsers.has(recipient.id)) return;
+
+      await this.notificationsService.notifyUser(
+        recipient.id,
+        sender.username,
+        type === 'image' ? 'Sent an image' : content,
+        { roomId: String(roomId), type },
+      );
+    } catch {}
   }
 }
