@@ -10,6 +10,15 @@ import { WsJwtGuard } from '../common/guards/ws-jwt.guard';
 import { MessagesService } from '../messages/messages.service';
 import { ChatService } from '../chat/chat.service';
 import { UsersService } from '../users/users.service';
+import { Logger } from '@nestjs/common';
+
+function isValidPayload(value: any, fields: string[]): boolean {
+  return (
+    value &&
+    typeof value === 'object' &&
+    fields.every((f) => value[f] !== undefined && value[f] !== null)
+  );
+}
 
 @WSGateway({
   cors: {
@@ -24,6 +33,7 @@ export class ChatGateway
   @WebSocketServer()
   server: Server;
 
+  private readonly logger = new Logger(ChatGateway.name);
   private onlineUsers = new Map<number, string[]>();
 
   constructor(
@@ -51,8 +61,8 @@ export class ChatGateway
       });
 
       this.server.emit('user:online', { userId: user.id, isOnline: true });
-
       client.emit('connected', { userId: user.id });
+      this.logger.log(`User ${user.username} connected (socket: ${client.id})`);
     } catch {
       client.disconnect();
     }
@@ -71,6 +81,7 @@ export class ChatGateway
       } else {
         this.onlineUsers.set(user.id, filtered);
       }
+      this.logger.log(`User ${user.username} disconnected`);
     }
   }
 
@@ -80,7 +91,8 @@ export class ChatGateway
     payload: { roomId: number; content: string },
   ) {
     const user = client.data.user;
-    if (!user) return;
+    if (!user || !isValidPayload(payload, ['roomId', 'content'])) return;
+    if (typeof payload.content !== 'string' || payload.content.length > 5000) return;
 
     const message = await this.messagesService.createMessage(
       payload.content,
@@ -103,7 +115,8 @@ export class ChatGateway
     payload: { messageId: number; content: string; roomId: number },
   ) {
     const user = client.data.user;
-    if (!user) return;
+    if (!user || !isValidPayload(payload, ['messageId', 'content', 'roomId'])) return;
+    if (typeof payload.content !== 'string' || payload.content.length > 5000) return;
 
     try {
       const updated = await this.chatService.editMessage(
@@ -125,7 +138,7 @@ export class ChatGateway
     payload: { messageId: number; roomId: number },
   ) {
     const user = client.data.user;
-    if (!user) return;
+    if (!user || !isValidPayload(payload, ['messageId', 'roomId'])) return;
 
     try {
       await this.chatService.deleteMessage(payload.messageId, user.id);
@@ -141,7 +154,8 @@ export class ChatGateway
     payload: { roomId: number; url: string },
   ) {
     const user = client.data.user;
-    if (!user) return;
+    if (!user || !isValidPayload(payload, ['roomId', 'url'])) return;
+    if (typeof payload.url !== 'string' || !payload.url.startsWith('/uploads/')) return;
 
     const message = await this.chatService.createImageMessage(
       payload.url,
@@ -160,11 +174,13 @@ export class ChatGateway
 
   @SubscribeMessage('room:join')
   handleJoinRoom(client: Socket, roomId: number) {
+    if (!roomId || typeof roomId !== 'number') return;
     client.join(`room:${roomId}`);
   }
 
   @SubscribeMessage('room:leave')
   handleLeaveRoom(client: Socket, roomId: number) {
+    if (!roomId || typeof roomId !== 'number') return;
     client.leave(`room:${roomId}`);
   }
 
@@ -173,6 +189,7 @@ export class ChatGateway
     client: Socket,
     payload: { messageId: number; roomId: number },
   ) {
+    if (!isValidPayload(payload, ['messageId', 'roomId'])) return;
     await this.messagesService.markAsRead(payload.messageId);
     this.server.to(`room:${payload.roomId}`).emit('message:read', {
       messageId: payload.messageId,
@@ -185,6 +202,7 @@ export class ChatGateway
     client: Socket,
     payload: { roomId: number; username: string },
   ) {
+    if (!isValidPayload(payload, ['roomId', 'username'])) return;
     client
       .to(`room:${payload.roomId}`)
       .emit('typing:start', { userId: client.data.user.id, ...payload });
@@ -195,6 +213,7 @@ export class ChatGateway
     client: Socket,
     payload: { roomId: number; username: string },
   ) {
+    if (!isValidPayload(payload, ['roomId', 'username'])) return;
     client
       .to(`room:${payload.roomId}`)
       .emit('typing:stop', { userId: client.data.user.id, ...payload });

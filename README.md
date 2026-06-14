@@ -157,26 +157,68 @@ chat-app/
 
 ---
 
-## Setup
+## Phase 4: Production Ready
 
-### Backend
+### Rate Limiting
+- `@nestjs/throttler` configured globally: 60 requests per 60 seconds per IP
+- Applied via `APP_GUARD` with `ThrottlerGuard`
+
+### Swagger / OpenAPI
+- Auto-generated API documentation at `GET /docs`
+- Bearer Auth support via "Authorize" button
+- Documented with `@nestjs/swagger` (`DocumentBuilder`)
+
+### WebSocket Input Validation
+- Custom `isValidPayload()` helper validates required fields on every event
+- Content length limited to 5000 chars; image URLs must start with `/uploads/`
+
+### NestJS Logger
+- Built-in Logger with levels: log, error, warn, debug, verbose
+- Logs user connect/disconnect events
+
+### Environment Validation
+- Joi schema validates all env vars on startup
+- `JWT_SECRET` and `DB_PASSWORD` marked as required (app fails to start if missing)
+
+### Docker Compose
+- `docker-compose.yml` with MySQL 8.0 + Backend services
+- MySQL healthcheck ensures backend waits for DB
+- Named volumes for persisting data and uploads
+- Multi-stage `Dockerfile` for smaller production image
+
+### TypeORM Migrations
+- Migration scripts: `npm run migration:generate`, `migration:run`, `migration:revert`
+- `synchronize: true` disabled in production (`NODE_ENV=production`)
+
+---
+
+## Quick Start
+
+### Docker (Production-like)
 
 ```bash
+cp backend/.env.example .env   # Edit secrets with strong values
+docker compose up -d           # Starts MySQL + Backend
+# API: http://localhost:3000
+# Docs: http://localhost:3000/docs
+```
+
+### Manual (Development)
+
+```bash
+# Backend
 cd backend
 cp .env.example .env    # Edit with your MySQL credentials
 npm install
 npm run start:dev       # http://localhost:3000
-```
 
-### Mobile
-
-```bash
+# Mobile (separate terminal)
 cd mobile
 npm install
 npx expo start          # Scan QR with Expo Go
 ```
 
-> Update `API_URL` in `mobile/src/services/api.ts` and `SOCKET_URL` in `mobile/src/services/socket.ts` to your machine's local IP.
+> Update `API_URL` / `SOCKET_URL` in `mobile/src/services/` to your machine's local IP.
 
 ---
 
@@ -230,5 +272,5 @@ npx expo start          # Scan QR with Expo Go
 | 1 | ✅ Done | Bug fixes: messages loading, socket state, perf (JOIN) |
 | 2 | ✅ Done | Pagination, online status, read receipts, error handling |
 | 3 | ✅ Done | Avatar upload, image sharing, group management, message edit/delete |
-| 4 | ⬜ Pending | Production-ready: migrations, rate limiting, logging, Swagger, Docker |
+| 4 | ✅ Done | Rate limiting, Swagger, validation, Docker Compose, migrations, logger |
 | 5 | ⬜ Pending | Voice/video calls, stories, E2E encryption, dark mode |

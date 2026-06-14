@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import * as Joi from 'joi';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import { AuthModule } from './auth/auth.module';
@@ -14,6 +17,21 @@ import { ChatGatewayModule } from './chat-gateway/chat-gateway.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, jwtConfig],
+      validationSchema: Joi.object({
+        DB_HOST: Joi.string().default('localhost'),
+        DB_PORT: Joi.number().default(3306),
+        DB_USER: Joi.string().default('root'),
+        DB_PASSWORD: Joi.string().required(),
+        DB_NAME: Joi.string().default('chat_app'),
+        JWT_SECRET: Joi.string().required().min(10),
+        JWT_EXPIRES_IN: Joi.string().default('7d'),
+        PORT: Joi.number().default(3000),
+      }),
+    }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        { ttl: 60000, limit: 60 },
+      ],
     }),
     TypeOrmModule.forRootAsync({
       inject: [databaseConfig.KEY],
@@ -25,7 +43,8 @@ import { ChatGatewayModule } from './chat-gateway/chat-gateway.module';
         password: dbConfig.password,
         database: dbConfig.database,
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: true,
+        synchronize: process.env.NODE_ENV !== 'production',
+        migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
         charset: 'utf8mb4',
       }),
     }),
@@ -34,6 +53,12 @@ import { ChatGatewayModule } from './chat-gateway/chat-gateway.module';
     ChatModule,
     MessagesModule,
     ChatGatewayModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}
