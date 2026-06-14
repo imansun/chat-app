@@ -128,6 +128,35 @@ chat-app/
 
 ---
 
+## Phase 3: Advanced Features
+
+### Avatar Upload
+- `PATCH /users/profile` endpoint with multipart file upload (multer)
+- Static file serving via `/uploads/` prefix
+- Mobile: tap avatar in header to upload from gallery (expo-image-picker)
+- Avatar displayed in ChatScreen header and ChatListScreen room list
+
+### Image Sharing
+- `type: 'text' | 'image'` field on Message entity
+- `POST /chat/upload` for image upload, stores in `uploads/messages/`
+- `image:send` WebSocket event for real-time sharing
+- Mobile: `+` button in input bar opens image picker
+- Images rendered inline at 200x200 in message bubbles
+
+### Message Edit & Delete
+- `PATCH /chat/messages/:id` — edit within 5-minute time limit
+- `DELETE /chat/messages/:id` — soft delete (marks as deleted)
+- `isEdited`, `isDeleted` fields; `message:edited` / `message:deleted` socket events
+- Mobile: long-press own messages for Edit/Delete modal
+- "edited" label shown; deleted messages show placeholder text
+
+### Group Management
+- `PATCH /chat/room/:id` — rename group
+- `POST /chat/room/:id/members` — add members
+- `DELETE /chat/room/:id/members/:userId` — remove members
+
+---
+
 ## Setup
 
 ### Backend
@@ -157,22 +186,34 @@ npx expo start          # Scan QR with Expo Go
 |---|---|---|---|
 | POST | `/auth/register` | Public | Register new user |
 | POST | `/auth/login` | Public | Login |
+| PATCH | `/users/profile` | JWT | Update profile (avatar upload) |
 | GET | `/users/search?q=` | JWT | Search users |
 | POST | `/chat/private` | JWT | Create 1-on-1 room |
 | POST | `/chat/group` | JWT | Create group room |
 | GET | `/chat/rooms` | JWT | List user's rooms |
 | GET | `/chat/room/:id` | JWT | Get room details |
 | GET | `/chat/room/:id/messages` | JWT | Get room messages (paginated) |
+| PATCH | `/chat/room/:id` | JWT | Rename group |
+| POST | `/chat/room/:id/members` | JWT | Add group members |
+| DELETE | `/chat/room/:id/members/:userId` | JWT | Remove group member |
+| PATCH | `/chat/messages/:id` | JWT | Edit message (5 min limit) |
+| DELETE | `/chat/messages/:id` | JWT | Delete message (soft) |
+| POST | `/chat/upload` | JWT | Upload image message |
 
 ---
 
 ## WebSocket Events (`/chat` namespace)
 
 | Event | Direction | Description |
-|---|---|---|
+|---|---|---|---|
 | `message:send` | Client → Server | Send a message |
 | `message:new` | Server → Client | New message broadcast |
+| `message:edit` | Client → Server | Edit a message |
+| `message:edited` | Server → Client | Message edited notification |
+| `message:delete` | Client → Server | Delete a message |
+| `message:deleted` | Server → Client | Message deleted notification |
 | `message:read` | Both | Mark/notify message read |
+| `image:send` | Client → Server | Send an image message |
 | `room:join` | Client → Server | Join a room |
 | `room:leave` | Client → Server | Leave a room |
 | `typing:start` | Both | Typing indicator on |
@@ -188,6 +229,6 @@ npx expo start          # Scan QR with Expo Go
 |---|---|---|
 | 1 | ✅ Done | Bug fixes: messages loading, socket state, perf (JOIN) |
 | 2 | ✅ Done | Pagination, online status, read receipts, error handling |
-| 3 | ⏳ In Progress | Avatar upload, image sharing, group management, message edit/delete |
+| 3 | ✅ Done | Avatar upload, image sharing, group management, message edit/delete |
 | 4 | ⬜ Pending | Production-ready: migrations, rate limiting, logging, Swagger, Docker |
 | 5 | ⬜ Pending | Voice/video calls, stories, E2E encryption, dark mode |

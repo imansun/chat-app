@@ -10,6 +10,11 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { Room } from '../../chat/entities/room.entity';
 
+export enum MessageType {
+  TEXT = 'text',
+  IMAGE = 'image',
+}
+
 @Entity('messages')
 export class Message {
   @PrimaryGeneratedColumn()
@@ -18,8 +23,21 @@ export class Message {
   @Column({ type: 'text' })
   content: string;
 
+  @Column({
+    type: 'enum',
+    enum: MessageType,
+    default: MessageType.TEXT,
+  })
+  type: MessageType;
+
   @Column({ default: false })
   isRead: boolean;
+
+  @Column({ default: false })
+  isEdited: boolean;
+
+  @Column({ default: false })
+  isDeleted: boolean;
 
   @ManyToOne(() => User, { eager: true })
   @JoinColumn({ name: 'senderId' })

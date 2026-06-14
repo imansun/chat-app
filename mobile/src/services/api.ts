@@ -47,9 +47,12 @@ export interface Room {
 export interface Message {
   id: number;
   content: string;
+  type: 'text' | 'image';
   senderId: number;
   roomId: number;
   isRead: boolean;
+  isEdited: boolean;
+  isDeleted: boolean;
   sender: User;
   createdAt: string;
 }
@@ -70,10 +73,36 @@ export const chatApi = {
   getRoom: (id: number) => api.get<Room>(`/chat/room/${id}`),
   getRoomMessages: (id: number, limit = 50, offset = 0) =>
     api.get<Message[]>(`/chat/room/${id}/messages`, { params: { limit, offset } }),
+  editMessage: (id: number, content: string) =>
+    api.patch<Message>(`/chat/messages/${id}`, { content }),
+  deleteMessage: (id: number) =>
+    api.delete(`/chat/messages/${id}`),
+  uploadImage: (roomId: number, fileUri: string) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: fileUri,
+      type: 'image/jpeg',
+      name: 'photo.jpg',
+    } as any);
+    formData.append('roomId', roomId.toString());
+    return api.post<Message>('/chat/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  updateRoomName: (id: number, name: string) =>
+    api.patch<Room>(`/chat/room/${id}`, { name }),
+  addMembers: (id: number, userIds: number[]) =>
+    api.post<Room>(`/chat/room/${id}/members`, { userIds }),
+  removeMember: (roomId: number, userId: number) =>
+    api.delete<Room>(`/chat/room/${roomId}/members/${userId}`),
 };
 
 export const userApi = {
   search: (q: string) => api.get<User[]>('/users/search', { params: { q } }),
+  updateProfile: (formData: FormData) =>
+    api.patch<User>('/users/profile', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
 };
 
 export default api;

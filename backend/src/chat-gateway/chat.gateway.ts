@@ -97,6 +97,67 @@ export class ChatGateway
     this.server.to(`room:${payload.roomId}`).emit('message:new', populated[0]);
   }
 
+  @SubscribeMessage('message:edit')
+  async handleEditMessage(
+    client: Socket,
+    payload: { messageId: number; content: string; roomId: number },
+  ) {
+    const user = client.data.user;
+    if (!user) return;
+
+    try {
+      const updated = await this.chatService.editMessage(
+        payload.messageId,
+        user.id,
+        payload.content,
+      );
+      this.server.to(`room:${payload.roomId}`).emit('message:edited', {
+        messageId: payload.messageId,
+        content: updated.content,
+        isEdited: true,
+      });
+    } catch {}
+  }
+
+  @SubscribeMessage('message:delete')
+  async handleDeleteMessage(
+    client: Socket,
+    payload: { messageId: number; roomId: number },
+  ) {
+    const user = client.data.user;
+    if (!user) return;
+
+    try {
+      await this.chatService.deleteMessage(payload.messageId, user.id);
+      this.server.to(`room:${payload.roomId}`).emit('message:deleted', {
+        messageId: payload.messageId,
+      });
+    } catch {}
+  }
+
+  @SubscribeMessage('image:send')
+  async handleImageMessage(
+    client: Socket,
+    payload: { roomId: number; url: string },
+  ) {
+    const user = client.data.user;
+    if (!user) return;
+
+    const message = await this.chatService.createImageMessage(
+      payload.url,
+      user.id,
+      payload.roomId,
+    );
+
+    const populated = await this.messagesService.getRoomMessages(
+      payload.roomId,
+      1,
+      0,
+    );
+
+    this.server.to(`room:${payload.roomId}`).emit('message:new', populated[0]);
+  }
+
   @SubscribeMessage('room:join')
   handleJoinRoom(client: Socket, roomId: number) {
     client.join(`room:${roomId}`);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,9 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { chatApi, userApi, Room, User } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +22,7 @@ export default function ChatListScreen({ navigation }: any) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [searching, setSearching] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -52,6 +55,32 @@ export default function ChatListScreen({ navigation }: any) {
       Alert.alert('Error', err.response?.data?.message || 'Search failed');
     } finally {
       setSearching(false);
+    }
+  };
+
+  const handleUpdateAvatar = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', {
+        uri: result.assets[0].uri,
+        type: 'image/jpeg',
+        name: 'avatar.jpg',
+      } as any);
+      await userApi.updateProfile(formData);
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to update avatar');
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
@@ -89,17 +118,23 @@ export default function ChatListScreen({ navigation }: any) {
     const other = getOtherParticipant(item);
     const isOnline = other?.isOnline || false;
 
+    const otherAvatar = !item.isGroup ? other?.avatar : null;
+
     return (
       <TouchableOpacity
         style={styles.roomItem}
         onPress={() => navigation.navigate('Chat', { room: item })}
       >
         <View style={styles.avatarWrapper}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {getRoomName(item).substring(0, 2).toUpperCase()}
-            </Text>
-          </View>
+          {otherAvatar ? (
+            <Image source={{ uri: otherAvatar }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>
+                {getRoomName(item).substring(0, 2).toUpperCase()}
+              </Text>
+            </View>
+          )}
           {!item.isGroup && isOnline && <View style={styles.onlineDot} />}
         </View>
         <View style={styles.roomInfo}>
@@ -121,7 +156,20 @@ export default function ChatListScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chat App</Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={handleUpdateAvatar} disabled={uploadingAvatar}>
+            {user?.avatar ? (
+              <Image source={{ uri: user.avatar }} style={styles.userAvatar} />
+            ) : (
+              <View style={styles.userAvatarPlaceholder}>
+                <Text style={styles.userAvatarText}>
+                  {user?.username?.substring(0, 2).toUpperCase() || 'U'}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Chat App</Text>
+        </View>
         <TouchableOpacity onPress={logout}>
           <Text style={styles.logout}>Logout</Text>
         </TouchableOpacity>
@@ -189,7 +237,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  headerTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginLeft: 10 },
+  userAvatar: { width: 36, height: 36, borderRadius: 18 },
+  userAvatarPlaceholder: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#128C7E', justifyContent: 'center', alignItems: 'center',
+  },
+  userAvatarText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   logout: { color: '#fff', fontSize: 14 },
   searchContainer: { padding: 8, backgroundColor: '#075E54' },
   searchInput: {
@@ -237,6 +292,11 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  avatarPlaceholder: {
     width: 48,
     height: 48,
     borderRadius: 24,
