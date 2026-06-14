@@ -71,8 +71,8 @@ export default function ChatListScreen({ navigation }: any) {
   };
 
   const getLastMessage = (room: Room) => {
-    if (room.messages?.length > 0) {
-      const msg = room.messages[0];
+    if (room.lastMessage) {
+      const msg = room.lastMessage;
       return `${msg.sender?.username || ''}: ${msg.content.substring(0, 30)}`;
     }
     return 'No messages yet';

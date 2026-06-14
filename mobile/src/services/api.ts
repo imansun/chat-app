@@ -40,6 +40,7 @@ export interface Room {
   isGroup: boolean;
   participants: User[];
   messages: Message[];
+  lastMessage: Message | null;
   createdAt: string;
 }
 
@@ -67,6 +68,8 @@ export const chatApi = {
     api.post<Room>('/chat/group', { name, userIds }),
   getRooms: () => api.get<Room[]>('/chat/rooms'),
   getRoom: (id: number) => api.get<Room>(`/chat/room/${id}`),
+  getRoomMessages: (id: number, limit = 50, offset = 0) =>
+    api.get<Message[]>(`/chat/room/${id}/messages`, { params: { limit, offset } }),
 };
 
 export const userApi = {

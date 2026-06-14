@@ -23,6 +23,7 @@ export default function ChatScreen({ route }: any) {
   const [inputText, setInputText] = useState('');
   const [socketConnected, setSocketConnected] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<number>>(new Set());
+  const [loadingMessages, setLoadingMessages] = useState(true);
   const flatListRef = useRef<FlatList>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -41,6 +42,10 @@ export default function ChatScreen({ route }: any) {
 
       socket.on('connect', () => setSocketConnected(true));
       socket.on('disconnect', () => setSocketConnected(false));
+
+      if (socket.connected) {
+        setSocketConnected(true);
+      }
 
       socket.emit('room:join', room.id);
 
@@ -65,8 +70,6 @@ export default function ChatScreen({ route }: any) {
           return next;
         });
       });
-
-      setSocketConnected(true);
     } catch {
       setSocketConnected(false);
     }
@@ -74,9 +77,15 @@ export default function ChatScreen({ route }: any) {
 
   const fetchMessages = async () => {
     try {
-      const { data } = await chatApi.getRoom(room.id);
-      setRoom(data);
-    } catch {}
+      const { data: roomData } = await chatApi.getRoom(room.id);
+      setRoom(roomData);
+
+      const { data: messagesData } = await chatApi.getRoomMessages(room.id);
+      setMessages(messagesData);
+    } catch {
+    } finally {
+      setLoadingMessages(false);
+    }
   };
 
   const sendMessage = () => {
@@ -164,20 +173,26 @@ export default function ChatScreen({ route }: any) {
         </View>
       </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderMessage}
-        style={styles.messagesList}
-        inverted
-        contentContainerStyle={styles.messagesContent}
-        ListEmptyComponent={
-          <View style={styles.emptyMessages}>
-            <Text style={styles.emptyText}>No messages yet. Say hi!</Text>
-          </View>
-        }
-      />
+      {loadingMessages ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#075E54" />
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderMessage}
+          style={styles.messagesList}
+          inverted
+          contentContainerStyle={styles.messagesContent}
+          ListEmptyComponent={
+            <View style={styles.emptyMessages}>
+              <Text style={styles.emptyText}>No messages yet. Say hi!</Text>
+            </View>
+          }
+        />
+      )}
 
       <View style={styles.inputContainer}>
         <TextInput
@@ -198,6 +213,7 @@ export default function ChatScreen({ route }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ECE5DD' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     backgroundColor: '#075E54',
     paddingHorizontal: 16,

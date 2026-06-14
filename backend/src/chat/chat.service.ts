@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Room } from './entities/room.entity';
 import { User } from '../users/entities/user.entity';
+import { Message } from '../messages/entities/message.entity';
 
 @Injectable()
 export class ChatService {
@@ -15,6 +16,8 @@ export class ChatService {
     private roomsRepository: Repository<Room>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Message)
+    private messagesRepository: Repository<Message>,
   ) {}
 
   async createPrivateRoom(userId: number, targetUserId: number) {
@@ -53,14 +56,26 @@ export class ChatService {
   }
 
   async getUserRooms(userId: number) {
-    return this.roomsRepository
+    const rooms = await this.roomsRepository
       .createQueryBuilder('room')
       .innerJoin('room.participants', 'participant')
       .where('participant.id = :userId', { userId })
       .leftJoinAndSelect('room.participants', 'allParticipants')
-      .leftJoinAndSelect('room.messages', 'lastMessage')
-      .orderBy('lastMessage.createdAt', 'DESC')
+      .orderBy('room.updatedAt', 'DESC')
       .getMany();
+
+    const roomsWithLastMessage = await Promise.all(
+      rooms.map(async (room) => {
+        const lastMessage = await this.messagesRepository.findOne({
+          where: { roomId: room.id },
+          order: { createdAt: 'DESC' },
+          relations: { sender: true },
+        });
+        return { ...room, lastMessage };
+      }),
+    );
+
+    return roomsWithLastMessage;
   }
 
   async getRoomById(roomId: number, userId: number) {
@@ -76,5 +91,25 @@ export class ChatService {
     if (!isParticipant) throw new ForbiddenException('Not a participant');
 
     return room;
+  }
+
+  async getRoomMessages(roomId: number, userId: number, limit = 50, offset = 0) {
+    const room = await this.roomsRepository.findOne({
+      where: { id: roomId },
+      relations: { participants: true },
+    });
+
+    if (!room) throw new NotFoundException('Room not found');
+
+    const isParticipant = room.participants.some((p) => p.id === userId);
+    if (!isParticipant) throw new ForbiddenException('Not a participant');
+
+    return this.messagesRepository.find({
+      where: { roomId },
+      relations: { sender: true },
+      order: { createdAt: 'DESC' },
+      take: limit,
+      skip: offset,
+    });
   }
 }
