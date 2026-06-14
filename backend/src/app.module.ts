@@ -12,6 +12,8 @@ import { ChatModule } from './chat/chat.module';
 import { MessagesModule } from './messages/messages.module';
 import { ChatGatewayModule } from './chat-gateway/chat-gateway.module';
 import { StoriesModule } from './stories/stories.module';
+import { CallModule } from './call/call.module';
+import { CallGatewayModule } from './call-gateway/call-gateway.module';
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { StoriesModule } from './stories/stories.module';
     MessagesModule,
     ChatGatewayModule,
     StoriesModule,
+    CallModule,
+    CallGatewayModule,
   ],
   providers: [
     {

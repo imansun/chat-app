@@ -145,4 +145,9 @@ export const voiceApi = {
   },
 };
 
+export const callApi = {
+  getHistory: () => api.get<any[]>('/calls/history'),
+  getMissed: () => api.get<any[]>('/calls/missed'),
+};
+
 export default api;

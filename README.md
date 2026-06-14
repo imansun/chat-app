@@ -245,6 +245,8 @@ npx expo start          # Scan QR with Expo Go
 | GET | `/stories/mine` | JWT | Get user's stories |
 | POST | `/stories` | JWT | Create story (image upload) |
 | DELETE | `/stories/:id` | JWT | Delete own story |
+| GET | `/calls/history` | JWT | Get call history (last 50) |
+| GET | `/calls/missed` | JWT | Get missed calls |
 
 ---
 
@@ -269,6 +271,26 @@ npx expo start          # Scan QR with Expo Go
 
 ---
 
+## WebSocket Events (`/call` namespace)
+
+| Event | Direction | Description |
+|---|---|---|
+| `call:start` | Client → Server | Initiate call (audio/video) |
+| `call:incoming` | Server → Client | Incoming call notification |
+| `call:accept` | Client → Server | Accept incoming call |
+| `call:accepted` | Server → Client | Call accepted |
+| `call:reject` | Client → Server | Reject incoming call |
+| `call:rejected` | Server → Client | Call rejected |
+| `call:end` | Client → Server | End active call |
+| `call:ended` | Server → Client | Call ended |
+| `call:busy` | Server → Client | Target user busy |
+| `call:offer` | Both | Forward SDP offer |
+| `call:answer` | Both | Forward SDP answer |
+| `call:ice-candidate` | Both | Forward ICE candidate |
+| `call:missed` | Client → Server | Mark call as missed |
+
+---
+
 ## Development Roadmap
 
 | Phase | Status | Features |
@@ -277,7 +299,8 @@ npx expo start          # Scan QR with Expo Go
 | 2 | ✅ Done | Pagination, online status, read receipts, error handling |
 | 3 | ✅ Done | Avatar upload, image sharing, group management, message edit/delete |
 | 4 | ✅ Done | Rate limiting, Swagger, validation, Docker Compose, migrations, logger |
-| 5 | ✅ Done | Dark mode, stories, voice messages, theme toggle |
+ | 5 | ✅ Done | Dark mode, stories, voice messages, theme toggle |
+| 6 | ✅ Done | WebRTC signaling, audio/video calls, call history |
 
 ---
 
@@ -287,3 +310,13 @@ npx expo start          # Scan QR with Expo Go
 - **Stories** — Backend `StoriesModule` (entity, 24h auto-expiry), image upload, mobile `StoryViewer` (full-screen, swipe, own delete).
 - **Voice Messages** — Audio recording via `expo-av` (mic button in ChatScreen), uploaded via existing `/chat/upload` endpoint (now accepts `audio/*`), playback inline with play/pause toggle.
 - **Config** — `MessageType` enum extended with `VOICE`; upload file filter accepts images + audio; `getActiveStories` filters by last 24h.
+
+---
+
+## Phase 6 Notes
+
+- **Call Signaling** — Separate `/call` WebSocket namespace with full signaling protocol (offer, answer, ICE candidates).
+- **Call Entity** — Stores call history (caller, callee, type, status, duration) in `calls` table.
+- **Active Call Management** — Server tracks active calls, prevents duplicate calls, handles missed/rejected/ended states.
+- **Mobile WebRTC** — `CallContext` manages peer connection lifecycle via `react-native-webrtc`; `IncomingCallScreen` (ringing UI with accept/reject) and `ActiveCallScreen` (mute, speaker, video toggle, end call) rendered as overlays.
+- **Call Buttons** — Audio and video call buttons in ChatScreen header for 1-on-1 chats.

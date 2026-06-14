@@ -2,16 +2,20 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
+import { useCall } from '../context/CallContext';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ChatListScreen from '../screens/ChatListScreen';
 import ChatScreen from '../screens/ChatScreen';
+import IncomingCallScreen from '../screens/IncomingCallScreen';
+import ActiveCallScreen from '../screens/ActiveCallScreen';
 import { ActivityIndicator, View } from 'react-native';
 
 const Stack = createNativeStackNavigator();
 
 export default function Navigation() {
   const { user, isLoading } = useAuth();
+  const { call } = useCall();
 
   if (isLoading) {
     return (
@@ -36,6 +40,8 @@ export default function Navigation() {
           </>
         )}
       </Stack.Navigator>
+      {call.status === 'ringing' && <IncomingCallScreen />}
+      {(call.status === 'connecting' || call.status === 'active') && <ActiveCallScreen />}
     </NavigationContainer>
   );
 }

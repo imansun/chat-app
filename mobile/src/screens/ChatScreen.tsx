@@ -18,6 +18,7 @@ import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useCall } from '../context/CallContext';
 import { connectSocket, disconnectSocket } from '../services/socket';
 import { chatApi, voiceApi, Message, Room } from '../services/api';
 import { Socket } from 'socket.io-client';
@@ -28,6 +29,7 @@ export default function ChatScreen({ route }: any) {
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { startCall } = useCall();
   const [room, setRoom] = useState<Room>(initialRoom);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -457,6 +459,28 @@ export default function ChatScreen({ route }: any) {
                 </Text>
               )}
             </View>
+            {!room.isGroup && (
+              <View style={styles.callActions}>
+                <TouchableOpacity
+                  style={styles.callBtn}
+                  onPress={() => {
+                    const other = room.participants?.find((p) => p.id !== user?.id);
+                    if (other) startCall(other, 'audio');
+                  }}
+                >
+                  <Ionicons name="call" size={20} color={colors.textInverse} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.callBtn}
+                  onPress={() => {
+                    const other = room.participants?.find((p) => p.id !== user?.id);
+                    if (other) startCall(other, 'video');
+                  }}
+                >
+                  <Ionicons name="videocam" size={20} color={colors.textInverse} />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -569,6 +593,8 @@ const styles = StyleSheet.create({
   onlineStatus: { fontSize: 12, fontWeight: '600' },
   disconnected: { color: '#ffcc00', fontSize: 12 },
   typingText: { fontSize: 12, fontStyle: 'italic' },
+  callActions: { flexDirection: 'row', gap: 12, marginLeft: 8 },
+  callBtn: { padding: 6 },
   messagesList: { flex: 1 },
   messagesContent: { paddingHorizontal: 10, paddingVertical: 8 },
   messageRow: { flexDirection: 'row', marginBottom: 6 },
