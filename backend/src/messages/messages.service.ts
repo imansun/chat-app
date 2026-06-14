@@ -14,11 +14,13 @@ export class MessagesService {
     content: string,
     senderId: number,
     roomId: number,
+    isEncrypted = false,
   ): Promise<Message> {
     const message = this.messagesRepository.create({
       content,
       senderId,
       roomId,
+      isEncrypted,
     });
     return this.messagesRepository.save(message);
   }

@@ -88,16 +88,17 @@ export class ChatGateway
   @SubscribeMessage('message:send')
   async handleMessage(
     client: Socket,
-    payload: { roomId: number; content: string },
+    payload: { roomId: number; content: string; isEncrypted?: boolean },
   ) {
     const user = client.data.user;
     if (!user || !isValidPayload(payload, ['roomId', 'content'])) return;
-    if (typeof payload.content !== 'string' || payload.content.length > 5000) return;
+    if (typeof payload.content !== 'string' || payload.content.length > 10000) return;
 
     const message = await this.messagesService.createMessage(
       payload.content,
       user.id,
       payload.roomId,
+      payload.isEncrypted === true,
     );
 
     const populated = await this.messagesService.getRoomMessages(
@@ -116,8 +117,7 @@ export class ChatGateway
   ) {
     const user = client.data.user;
     if (!user || !isValidPayload(payload, ['messageId', 'content', 'roomId'])) return;
-    if (typeof payload.content !== 'string' || payload.content.length > 5000) return;
-
+    if (typeof payload.content !== 'string' || payload.content.length > 10000) return;
     try {
       const updated = await this.chatService.editMessage(
         payload.messageId,

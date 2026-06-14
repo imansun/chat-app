@@ -53,6 +53,7 @@ export interface Message {
   isRead: boolean;
   isEdited: boolean;
   isDeleted: boolean;
+  isEncrypted: boolean;
   sender: User;
   createdAt: string;
 }
@@ -148,6 +149,12 @@ export const voiceApi = {
 export const callApi = {
   getHistory: () => api.get<any[]>('/calls/history'),
   getMissed: () => api.get<any[]>('/calls/missed'),
+};
+
+export const keyApi = {
+  upload: (publicKey: string) => api.post('/keys', { publicKey }),
+  get: (userId: number) => api.get<string>(`/keys/${userId}`),
+  has: () => api.get<boolean>('/keys/me/has'),
 };
 
 export default api;

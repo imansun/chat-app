@@ -299,8 +299,9 @@ npx expo start          # Scan QR with Expo Go
 | 2 | ✅ Done | Pagination, online status, read receipts, error handling |
 | 3 | ✅ Done | Avatar upload, image sharing, group management, message edit/delete |
 | 4 | ✅ Done | Rate limiting, Swagger, validation, Docker Compose, migrations, logger |
- | 5 | ✅ Done | Dark mode, stories, voice messages, theme toggle |
+| 5 | ✅ Done | Dark mode, stories, voice messages, theme toggle |
 | 6 | ✅ Done | WebRTC signaling, audio/video calls, call history |
+| 7 | ✅ Done | End-to-end encryption (NaCl box), key management |
 
 ---
 
@@ -313,7 +314,22 @@ npx expo start          # Scan QR with Expo Go
 
 ---
 
-## Phase 6 Notes
+## Phase 7 Notes
+
+- **End-to-End Encryption** — Uses `tweetnacl` (Curve25519 + XSalsa20-Poly1305) for asymmetric encryption.
+- **Key Management** — Each user generates a keypair on first login; public key stored on server (`POST/GET /keys`), private key is saved in device SecureStore only.
+- **Encryption Flow** — Text messages are encrypted with recipient's public key before sending via WebSocket; server stores only ciphertext; recipient decrypts with own private key.
+- **Key Endpoints** — `POST /keys` (upload), `GET /keys/:userId` (retrieve public key), `GET /keys/me/has` (check if key exists).
+- **`isEncrypted` Flag** — Messages include `isEncrypted: boolean`; UI shows lock icon on encrypted messages and "🔒 End-to-end encrypted" badge in chat header.
+- **Graceful Fallback** — If recipient has no public key or encryption fails, message is sent as plaintext (no E2EE).
+
+## API Endpoints (new in Phase 7)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/keys` | JWT | Upload E2EE public key |
+| GET | `/keys/:userId` | JWT | Get user's public key |
+| GET | `/keys/me/has` | JWT | Check if current user has key |
 
 - **Call Signaling** — Separate `/call` WebSocket namespace with full signaling protocol (offer, answer, ICE candidates).
 - **Call Entity** — Stores call history (caller, callee, type, status, duration) in `calls` table.

@@ -40,6 +40,9 @@ export class Message {
   @Column({ default: false })
   isDeleted: boolean;
 
+  @Column({ default: false })
+  isEncrypted: boolean;
+
   @ManyToOne(() => User, { eager: true })
   @JoinColumn({ name: 'senderId' })
   sender: User;

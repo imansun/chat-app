@@ -21,6 +21,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useCall } from '../context/CallContext';
 import { connectSocket, disconnectSocket } from '../services/socket';
 import { chatApi, voiceApi, Message, Room } from '../services/api';
+import { getKeyPair, encryptMessage, decryptMessage } from '../services/e2ee';
 import { Socket } from 'socket.io-client';
 
 const MESSAGES_LIMIT = 50;
@@ -77,7 +78,14 @@ export default function ChatScreen({ route }: any) {
 
       socket.emit('room:join', room.id);
 
-      socket.on('message:new', (message: Message) => {
+      socket.on('message:new', async (message: Message) => {
+        if (message.isEncrypted && message.senderId !== user?.id) {
+          const kp = await getKeyPair();
+          if (kp) {
+            const decrypted = await decryptMessage(message.content, message.senderId, kp);
+            if (decrypted) message.content = decrypted;
+          }
+        }
         setMessages((prev) => {
           if (prev.some((m) => m.id === message.id)) return prev;
           return [message, ...prev];
@@ -90,7 +98,7 @@ export default function ChatScreen({ route }: any) {
         );
       });
 
-      socket.on('message:edited', ({ messageId, content }: { messageId: number; content: string }) => {
+      socket.on('message:edited', async ({ messageId, content, isEdited: editedFlag }: { messageId: number; content: string; isEdited: boolean }) => {
         setMessages((prev) =>
           prev.map((m) => (m.id === messageId ? { ...m, content, isEdited: true } : m)),
         );
@@ -131,7 +139,19 @@ export default function ChatScreen({ route }: any) {
         chatApi.getRoomMessages(room.id, MESSAGES_LIMIT, 0),
       ]);
       setRoom(roomData);
-      setMessages(messagesData);
+
+      const kp = await getKeyPair();
+      const decrypted = await Promise.all(
+        messagesData.map(async (msg) => {
+          if (msg.isEncrypted && msg.senderId !== user?.id && kp) {
+            const d = await decryptMessage(msg.content, msg.senderId, kp);
+            if (d) msg.content = d;
+          }
+          return msg;
+        }),
+      );
+
+      setMessages(decrypted);
       setHasMore(messagesData.length >= MESSAGES_LIMIT);
       setOffset(messagesData.length);
     } catch (err: any) {
@@ -159,7 +179,17 @@ export default function ChatScreen({ route }: any) {
     setLoadingMore(true);
     try {
       const { data } = await chatApi.getRoomMessages(room.id, MESSAGES_LIMIT, offset);
-      setMessages((prev) => [...prev, ...data]);
+      const kp = await getKeyPair();
+      const decrypted = await Promise.all(
+        data.map(async (msg) => {
+          if (msg.isEncrypted && msg.senderId !== user?.id && kp) {
+            const d = await decryptMessage(msg.content, msg.senderId, kp);
+            if (d) msg.content = d;
+          }
+          return msg;
+        }),
+      );
+      setMessages((prev) => [...prev, ...decrypted]);
       setHasMore(data.length >= MESSAGES_LIMIT);
       setOffset((prev) => prev + data.length);
     } catch {
@@ -168,7 +198,7 @@ export default function ChatScreen({ route }: any) {
     }
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const text = inputText.trim();
     if (!text || !socketRef.current) return;
 
@@ -180,9 +210,19 @@ export default function ChatScreen({ route }: any) {
       });
       setEditingMessage(null);
     } else {
+      const kp = await getKeyPair();
+      let content = text;
+      if (kp && !room.isGroup) {
+        const other = room.participants?.find((p) => p.id !== user?.id);
+        if (other) {
+          const encrypted = await encryptMessage(text, other.id, kp);
+          if (encrypted) content = encrypted;
+        }
+      }
       socketRef.current.emit('message:send', {
         roomId: room.id,
-        content: text,
+        content,
+        isEncrypted: content !== text,
       });
     }
 
@@ -411,6 +451,9 @@ export default function ChatScreen({ route }: any) {
             {item.isEdited && !item.isDeleted && (
               <Text style={[styles.edited, { color: colors.textSecondary }]}>edited </Text>
             )}
+            {item.isEncrypted && (
+              <Ionicons name="lock-closed" size={10} color={colors.textSecondary} style={{ marginRight: 2 }} />
+            )}
             <Text style={[styles.time, { color: colors.textSecondary }]}>{time}</Text>
             {isMine && (
               <Text style={[styles.status, item.isRead && { color: colors.online }]}>
@@ -447,6 +490,12 @@ export default function ChatScreen({ route }: any) {
             )}
             <View style={styles.headerText}>
               <Text style={[styles.headerTitle, { color: colors.textInverse }]}>{getRoomName()}</Text>
+              {!room.isGroup && (
+                <View style={styles.e2eeRow}>
+                  <Ionicons name="lock-closed" size={10} color={colors.online} />
+                  <Text style={[styles.e2eeLabel, { color: colors.online }]}> End-to-end encrypted</Text>
+                </View>
+              )}
               {!room.isGroup && isOtherOnline() && !typingNames.length && (
                 <Text style={[styles.onlineStatus, { color: colors.background }]}>online</Text>
               )}
@@ -593,6 +642,8 @@ const styles = StyleSheet.create({
   onlineStatus: { fontSize: 12, fontWeight: '600' },
   disconnected: { color: '#ffcc00', fontSize: 12 },
   typingText: { fontSize: 12, fontStyle: 'italic' },
+  e2eeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  e2eeLabel: { fontSize: 11, fontWeight: '600' },
   callActions: { flexDirection: 'row', gap: 12, marginLeft: 8 },
   callBtn: { padding: 6 },
   messagesList: { flex: 1 },
