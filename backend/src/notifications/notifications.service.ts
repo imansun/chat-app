@@ -10,8 +10,14 @@ export class NotificationsService {
     private deviceTokensRepository: Repository<DeviceToken>,
   ) {}
 
-  async registerToken(userId: number, token: string, platform = 'expo'): Promise<DeviceToken> {
-    const existing = await this.deviceTokensRepository.findOne({ where: { userId, token } });
+  async registerToken(
+    userId: number,
+    token: string,
+    platform = 'expo',
+  ): Promise<DeviceToken> {
+    const existing = await this.deviceTokensRepository.findOne({
+      where: { userId, token },
+    });
     if (existing) return existing;
     const dt = this.deviceTokensRepository.create({ userId, token, platform });
     return this.deviceTokensRepository.save(dt);
@@ -22,7 +28,9 @@ export class NotificationsService {
   }
 
   async getUserTokens(userId: number): Promise<string[]> {
-    const tokens = await this.deviceTokensRepository.find({ where: { userId } });
+    const tokens = await this.deviceTokensRepository.find({
+      where: { userId },
+    });
     return tokens.map((t) => t.token);
   }
 
@@ -62,7 +70,9 @@ export class NotificationsService {
   ): Promise<void> {
     const tokens = await this.getUserTokens(userId);
     await Promise.allSettled(
-      tokens.map((token) => this.sendPushNotification(token, title, body, data)),
+      tokens.map((token) =>
+        this.sendPushNotification(token, title, body, data),
+      ),
     );
   }
 }

@@ -25,13 +25,26 @@ export class ChatController {
   constructor(private chatService: ChatService) {}
 
   @Post('private')
-  createPrivate(@Body('targetUserId') targetUserId: number, @Req() req: Request) {
-    return this.chatService.createPrivateRoom((req as any).user.id, targetUserId);
+  createPrivate(
+    @Body('targetUserId') targetUserId: number,
+    @Req() req: Request,
+  ) {
+    return this.chatService.createPrivateRoom(
+      (req as any).user.id,
+      targetUserId,
+    );
   }
 
   @Post('group')
-  createGroup(@Body() body: { name: string; userIds: number[] }, @Req() req: Request) {
-    return this.chatService.createGroupRoom(body.name, body.userIds, (req as any).user.id);
+  createGroup(
+    @Body() body: { name: string; userIds: number[] },
+    @Req() req: Request,
+  ) {
+    return this.chatService.createGroupRoom(
+      body.name,
+      body.userIds,
+      (req as any).user.id,
+    );
   }
 
   @Get('rooms')
@@ -83,7 +96,11 @@ export class ChatController {
     @Param('userId') userId: string,
     @Req() req: Request,
   ) {
-    return this.chatService.removeRoomMember(+id, (req as any).user.id, +userId);
+    return this.chatService.removeRoomMember(
+      +id,
+      (req as any).user.id,
+      +userId,
+    );
   }
 
   @Patch('messages/:id')
@@ -106,13 +123,16 @@ export class ChatController {
       storage: diskStorage({
         destination: join(__dirname, '..', '..', 'uploads', 'messages'),
         filename: (_req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, uniqueSuffix + extname(file.originalname));
         },
       }),
       fileFilter: (_req, file, cb) => {
         if (
-          !file.originalname.match(/\.(jpg|jpeg|png|gif|webp|m4a|mp3|wav|ogg|aac)$/) &&
+          !file.originalname.match(
+            /\.(jpg|jpeg|png|gif|webp|m4a|mp3|wav|ogg|aac)$/,
+          ) &&
           !file.mimetype.startsWith('audio/')
         ) {
           cb(new Error('Only image and audio files are allowed'), false);
@@ -135,7 +155,12 @@ export class ChatController {
       +roomId,
       isAudio ? 'voice' : 'image',
     );
-    const populated = await this.chatService.getRoomMessages(message.roomId, (req as any).user.id, 1, 0);
+    const populated = await this.chatService.getRoomMessages(
+      message.roomId,
+      (req as any).user.id,
+      1,
+      0,
+    );
     return populated[0];
   }
 }

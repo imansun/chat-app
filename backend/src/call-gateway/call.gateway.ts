@@ -63,7 +63,10 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!user || !payload?.targetUserId || !payload?.type) return;
     if (!['audio', 'video'].includes(payload.type)) return;
 
-    if (this.callService.hasActiveCall(user.id) || this.callService.hasActiveCall(payload.targetUserId)) {
+    if (
+      this.callService.hasActiveCall(user.id) ||
+      this.callService.hasActiveCall(payload.targetUserId)
+    ) {
       client.emit('call:busy', { targetUserId: payload.targetUserId });
       return;
     }
@@ -74,7 +77,12 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload.type as CallType,
     );
 
-    this.callService.setActiveCall(call.id, user.id, payload.targetUserId, payload.type as CallType);
+    this.callService.setActiveCall(
+      call.id,
+      user.id,
+      payload.targetUserId,
+      payload.type as CallType,
+    );
 
     this.server.to(`user:${payload.targetUserId}`).emit('call:incoming', {
       callId: call.id,
@@ -83,7 +91,8 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
 
     if (!this.onlineUsers.has(payload.targetUserId)) {
-      const typeLabel = payload.type === 'video' ? '📹 Video call' : '📞 Audio call';
+      const typeLabel =
+        payload.type === 'video' ? '📹 Video call' : '📞 Audio call';
       await this.notificationsService.notifyUser(
         payload.targetUserId,
         user.username,
@@ -96,7 +105,7 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('call:accept')
-  async handleAcceptCall(client: Socket, payload: { callId: number }) {
+  handleAcceptCall(client: Socket, payload: { callId: number }) {
     const user = client.data.user;
     if (!user || !payload?.callId) return;
 
@@ -173,7 +182,10 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('call:ice-candidate')
-  handleIceCandidate(client: Socket, payload: { callId: number; candidate: string }) {
+  handleIceCandidate(
+    client: Socket,
+    payload: { callId: number; candidate: string },
+  ) {
     const user = client.data.user;
     if (!user || !payload?.callId || !payload?.candidate) return;
 

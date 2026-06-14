@@ -1,4 +1,12 @@
-import { Controller, Post, Delete, Body, UseGuards, Req, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Delete,
+  Body,
+  UseGuards,
+  Req,
+  Request,
+} from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -22,6 +30,9 @@ export class NotificationsController {
 
   @Delete('unregister')
   unregister(@Body('token') token: string, @Req() req: Request) {
-    return this.notificationsService.unregisterToken((req as any).user.id, token);
+    return this.notificationsService.unregisterToken(
+      (req as any).user.id,
+      token,
+    );
   }
 }

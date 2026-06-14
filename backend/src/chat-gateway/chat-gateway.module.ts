@@ -8,7 +8,13 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
-  imports: [MessagesModule, ChatModule, UsersModule, NotificationsModule, JwtModule],
+  imports: [
+    MessagesModule,
+    ChatModule,
+    UsersModule,
+    NotificationsModule,
+    JwtModule,
+  ],
   providers: [ChatGateway, WsJwtGuard],
 })
 export class ChatGatewayModule {}

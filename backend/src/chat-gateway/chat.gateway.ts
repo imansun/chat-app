@@ -28,9 +28,7 @@ function isValidPayload(value: any, fields: string[]): boolean {
   },
   namespace: '/chat',
 })
-export class ChatGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
@@ -94,9 +92,10 @@ export class ChatGateway
   ) {
     const user = client.data.user;
     if (!user || !isValidPayload(payload, ['roomId', 'content'])) return;
-    if (typeof payload.content !== 'string' || payload.content.length > 10000) return;
+    if (typeof payload.content !== 'string' || payload.content.length > 10000)
+      return;
 
-    const message = await this.messagesService.createMessage(
+    await this.messagesService.createMessage(
       payload.content,
       user.id,
       payload.roomId,
@@ -111,7 +110,12 @@ export class ChatGateway
 
     this.server.to(`room:${payload.roomId}`).emit('message:new', populated[0]);
 
-    this.trySendPushNotification(payload.roomId, user, populated[0]?.content || payload.content, 'message');
+    this.trySendPushNotification(
+      payload.roomId,
+      user,
+      populated[0]?.content || payload.content,
+      'message',
+    );
   }
 
   @SubscribeMessage('message:edit')
@@ -120,8 +124,10 @@ export class ChatGateway
     payload: { messageId: number; content: string; roomId: number },
   ) {
     const user = client.data.user;
-    if (!user || !isValidPayload(payload, ['messageId', 'content', 'roomId'])) return;
-    if (typeof payload.content !== 'string' || payload.content.length > 10000) return;
+    if (!user || !isValidPayload(payload, ['messageId', 'content', 'roomId']))
+      return;
+    if (typeof payload.content !== 'string' || payload.content.length > 10000)
+      return;
     try {
       const updated = await this.chatService.editMessage(
         payload.messageId,
@@ -133,7 +139,9 @@ export class ChatGateway
         content: updated.content,
         isEdited: true,
       });
-    } catch {}
+    } catch (err) {
+      this.logger.error(`Failed to edit message: ${err}`);
+    }
   }
 
   @SubscribeMessage('message:delete')
@@ -149,7 +157,9 @@ export class ChatGateway
       this.server.to(`room:${payload.roomId}`).emit('message:deleted', {
         messageId: payload.messageId,
       });
-    } catch {}
+    } catch (err) {
+      this.logger.error(`Failed to delete message: ${err}`);
+    }
   }
 
   @SubscribeMessage('image:send')
@@ -159,9 +169,10 @@ export class ChatGateway
   ) {
     const user = client.data.user;
     if (!user || !isValidPayload(payload, ['roomId', 'url'])) return;
-    if (typeof payload.url !== 'string' || !payload.url.startsWith('/uploads/')) return;
+    if (typeof payload.url !== 'string' || !payload.url.startsWith('/uploads/'))
+      return;
 
-    const message = await this.chatService.createImageMessage(
+    await this.chatService.createImageMessage(
       payload.url,
       user.id,
       payload.roomId,
@@ -246,6 +257,8 @@ export class ChatGateway
         type === 'image' ? 'Sent an image' : content,
         { roomId: String(roomId), type },
       );
-    } catch {}
+    } catch (err) {
+      this.logger.error(`Failed to send push notification: ${err}`);
+    }
   }
 }

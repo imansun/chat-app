@@ -98,7 +98,12 @@ export class ChatService {
     return room;
   }
 
-  async getRoomMessages(roomId: number, userId: number, limit = 50, offset = 0) {
+  async getRoomMessages(
+    roomId: number,
+    userId: number,
+    limit = 50,
+    offset = 0,
+  ) {
     const room = await this.roomsRepository.findOne({
       where: { id: roomId },
       relations: { participants: true },
@@ -123,7 +128,8 @@ export class ChatService {
       where: { id: messageId },
     });
     if (!message) throw new NotFoundException('Message not found');
-    if (message.senderId !== userId) throw new ForbiddenException('Not your message');
+    if (message.senderId !== userId)
+      throw new ForbiddenException('Not your message');
 
     const now = new Date().getTime();
     const msgTime = new Date(message.createdAt).getTime();
@@ -141,7 +147,8 @@ export class ChatService {
       where: { id: messageId },
     });
     if (!message) throw new NotFoundException('Message not found');
-    if (message.senderId !== userId) throw new ForbiddenException('Not your message');
+    if (message.senderId !== userId)
+      throw new ForbiddenException('Not your message');
 
     message.isDeleted = true;
     message.content = 'This message was deleted';

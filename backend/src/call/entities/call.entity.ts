@@ -8,7 +8,6 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { Room } from '../../chat/entities/room.entity';
 
 export enum CallStatus {
   MISSED = 'missed',

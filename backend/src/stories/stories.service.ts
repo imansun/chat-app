@@ -18,7 +18,7 @@ export class StoriesService {
   async getActiveStories(): Promise<Story[]> {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     return this.storiesRepository.find({
-      where: { createdAt: LessThan(new Date()) },
+      where: { createdAt: LessThan(twentyFourHoursAgo) },
       relations: { user: true },
       order: { createdAt: 'DESC' },
     });
@@ -27,7 +27,7 @@ export class StoriesService {
   async getUserStories(userId: number): Promise<Story[]> {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     return this.storiesRepository.find({
-      where: { userId, createdAt: LessThan(new Date()) },
+      where: { userId, createdAt: LessThan(twentyFourHoursAgo) },
       order: { createdAt: 'DESC' },
     });
   }

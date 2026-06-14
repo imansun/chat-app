@@ -37,7 +37,8 @@ export class StoriesController {
       storage: diskStorage({
         destination: join(__dirname, '..', '..', 'uploads', 'stories'),
         filename: (_req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, 'story-' + uniqueSuffix + extname(file.originalname));
         },
       }),
@@ -50,10 +51,7 @@ export class StoriesController {
       limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
-  async create(
-    @Req() req: Request,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
+  async create(@Req() req: Request, @UploadedFile() file: Express.Multer.File) {
     const url = `/uploads/stories/${file.filename}`;
     return this.storiesService.create((req as any).user.id, url);
   }

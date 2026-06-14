@@ -34,9 +34,7 @@ import { NotificationsModule } from './notifications/notifications.module';
       }),
     }),
     ThrottlerModule.forRoot({
-      throttlers: [
-        { ttl: 60000, limit: 60 },
-      ],
+      throttlers: [{ ttl: 60000, limit: 60 }],
     }),
     TypeOrmModule.forRootAsync({
       inject: [databaseConfig.KEY],

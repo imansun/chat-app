@@ -31,7 +31,8 @@ export class UsersController {
       storage: diskStorage({
         destination: join(__dirname, '..', '..', 'uploads', 'avatars'),
         filename: (_req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, uniqueSuffix + extname(file.originalname));
         },
       }),

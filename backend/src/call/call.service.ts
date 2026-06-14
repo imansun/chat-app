@@ -7,7 +7,13 @@ import { Call, CallStatus, CallType } from './entities/call.entity';
 export class CallService {
   private activeCalls = new Map<
     number,
-    { callId: number; callerId: number; calleeId: number; type: CallType; startTime: number }
+    {
+      callId: number;
+      callerId: number;
+      calleeId: number;
+      type: CallType;
+      startTime: number;
+    }
   >();
 
   constructor(
@@ -15,13 +21,28 @@ export class CallService {
     private callsRepository: Repository<Call>,
   ) {}
 
-  async createCall(callerId: number, calleeId: number, type: CallType): Promise<Call> {
+  async createCall(
+    callerId: number,
+    calleeId: number,
+    type: CallType,
+  ): Promise<Call> {
     const call = this.callsRepository.create({ callerId, calleeId, type });
     return this.callsRepository.save(call);
   }
 
-  setActiveCall(callId: number, callerId: number, calleeId: number, type: CallType) {
-    this.activeCalls.set(callId, { callId, callerId, calleeId, type, startTime: Date.now() });
+  setActiveCall(
+    callId: number,
+    callerId: number,
+    calleeId: number,
+    type: CallType,
+  ) {
+    this.activeCalls.set(callId, {
+      callId,
+      callerId,
+      calleeId,
+      type,
+      startTime: Date.now(),
+    });
   }
 
   getActiveCall(callId: number) {
@@ -47,7 +68,9 @@ export class CallService {
     if (!call) throw new NotFoundException('Call not found');
 
     const active = this.activeCalls.get(callId);
-    const duration = active ? Math.floor((Date.now() - active.startTime) / 1000) : 0;
+    const duration = active
+      ? Math.floor((Date.now() - active.startTime) / 1000)
+      : 0;
 
     call.status = status;
     call.duration = duration;
