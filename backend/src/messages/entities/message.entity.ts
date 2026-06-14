@@ -13,6 +13,7 @@ import { Room } from '../../chat/entities/room.entity';
 export enum MessageType {
   TEXT = 'text',
   IMAGE = 'image',
+  VOICE = 'voice',
 }
 
 @Entity('messages')

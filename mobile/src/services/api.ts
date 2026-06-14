@@ -47,13 +47,21 @@ export interface Room {
 export interface Message {
   id: number;
   content: string;
-  type: 'text' | 'image';
+  type: 'text' | 'image' | 'voice';
   senderId: number;
   roomId: number;
   isRead: boolean;
   isEdited: boolean;
   isDeleted: boolean;
   sender: User;
+  createdAt: string;
+}
+
+export interface StoryType {
+  id: number;
+  url: string;
+  user: User;
+  userId: number;
   createdAt: string;
 }
 
@@ -103,6 +111,38 @@ export const userApi = {
     api.patch<User>('/users/profile', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+};
+
+export const storyApi = {
+  getActive: () => api.get<StoryType[]>('/stories'),
+  getMine: () => api.get<StoryType[]>('/stories/mine'),
+  create: (fileUri: string) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: fileUri,
+      type: 'image/jpeg',
+      name: 'story.jpg',
+    } as any);
+    return api.post<StoryType>('/stories', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  delete: (id: number) => api.delete(`/stories/${id}`),
+};
+
+export const voiceApi = {
+  upload: (roomId: number, fileUri: string) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: fileUri,
+      type: 'audio/mp4',
+      name: 'voice.m4a',
+    } as any);
+    formData.append('roomId', roomId.toString());
+    return api.post<Message>('/chat/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export default api;

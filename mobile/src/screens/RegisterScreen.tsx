@@ -11,9 +11,11 @@ import {
   Platform,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function RegisterScreen({ navigation }: any) {
   const { register } = useAuth();
+  const { colors } = useTheme();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,11 +38,11 @@ export default function RegisterScreen({ navigation }: any) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.primary }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
-        <Text style={styles.logo}>💬 Chat App</Text>
+        <Text style={[styles.logo]}>{'>'} Chat App</Text>
         <Text style={styles.subtitle}>Create your account</Text>
       </View>
 
@@ -91,7 +93,7 @@ export default function RegisterScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#075E54', justifyContent: 'center', padding: 20 },
+  container: { flex: 1, justifyContent: 'center', padding: 20 },
   header: { alignItems: 'center', marginBottom: 40 },
   logo: { fontSize: 32, fontWeight: 'bold', color: '#fff' },
   subtitle: { fontSize: 16, color: '#ddd', marginTop: 8 },

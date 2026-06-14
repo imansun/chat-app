@@ -180,12 +180,14 @@ export class ChatService {
     content: string,
     senderId: number,
     roomId: number,
+    type: string = 'image',
   ): Promise<Message> {
+    const msgType = type === 'voice' ? MessageType.VOICE : MessageType.IMAGE;
     const message = this.messagesRepository.create({
       content,
       senderId,
       roomId,
-      type: MessageType.IMAGE,
+      type: msgType,
     });
     return this.messagesRepository.save(message);
   }

@@ -240,7 +240,11 @@ npx expo start          # Scan QR with Expo Go
 | DELETE | `/chat/room/:id/members/:userId` | JWT | Remove group member |
 | PATCH | `/chat/messages/:id` | JWT | Edit message (5 min limit) |
 | DELETE | `/chat/messages/:id` | JWT | Delete message (soft) |
-| POST | `/chat/upload` | JWT | Upload image message |
+| POST | `/chat/upload` | JWT | Upload image/voice message |
+| GET | `/stories` | JWT | Get active stories (24h) |
+| GET | `/stories/mine` | JWT | Get user's stories |
+| POST | `/stories` | JWT | Create story (image upload) |
+| DELETE | `/stories/:id` | JWT | Delete own story |
 
 ---
 
@@ -273,4 +277,13 @@ npx expo start          # Scan QR with Expo Go
 | 2 | ✅ Done | Pagination, online status, read receipts, error handling |
 | 3 | ✅ Done | Avatar upload, image sharing, group management, message edit/delete |
 | 4 | ✅ Done | Rate limiting, Swagger, validation, Docker Compose, migrations, logger |
-| 5 | ⬜ Pending | Voice/video calls, stories, E2E encryption, dark mode |
+| 5 | ✅ Done | Dark mode, stories, voice messages, theme toggle |
+
+---
+
+## Phase 5 Notes
+
+- **Dark mode** — `ThemeContext` with persistent choice (SecureStore), toggle button in ChatList header, full dark palette applied to all screens.
+- **Stories** — Backend `StoriesModule` (entity, 24h auto-expiry), image upload, mobile `StoryViewer` (full-screen, swipe, own delete).
+- **Voice Messages** — Audio recording via `expo-av` (mic button in ChatScreen), uploaded via existing `/chat/upload` endpoint (now accepts `audio/*`), playback inline with play/pause toggle.
+- **Config** — `MessageType` enum extended with `VOICE`; upload file filter accepts images + audio; `getActiveStories` filters by last 24h.

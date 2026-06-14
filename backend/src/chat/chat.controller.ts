@@ -111,8 +111,11 @@ export class ChatController {
         },
       }),
       fileFilter: (_req, file, cb) => {
-        if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
-          cb(new Error('Only image files are allowed'), false);
+        if (
+          !file.originalname.match(/\.(jpg|jpeg|png|gif|webp|m4a|mp3|wav|ogg|aac)$/) &&
+          !file.mimetype.startsWith('audio/')
+        ) {
+          cb(new Error('Only image and audio files are allowed'), false);
         }
         cb(null, true);
       },
@@ -125,10 +128,12 @@ export class ChatController {
     @Req() req: Request,
   ) {
     const url = `/uploads/messages/${file.filename}`;
+    const isAudio = file.mimetype.startsWith('audio/');
     const message = await this.chatService.createImageMessage(
       url,
       (req as any).user.id,
       +roomId,
+      isAudio ? 'voice' : 'image',
     );
     const populated = await this.chatService.getRoomMessages(message.roomId, (req as any).user.id, 1, 0);
     return populated[0];

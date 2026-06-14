@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { ChatModule } from './chat/chat.module';
 import { MessagesModule } from './messages/messages.module';
 import { ChatGatewayModule } from './chat-gateway/chat-gateway.module';
+import { StoriesModule } from './stories/stories.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { ChatGatewayModule } from './chat-gateway/chat-gateway.module';
     ChatModule,
     MessagesModule,
     ChatGatewayModule,
+    StoriesModule,
   ],
   providers: [
     {

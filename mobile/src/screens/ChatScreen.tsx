@@ -14,9 +14,12 @@ import {
   Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Audio } from 'expo-av';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { connectSocket, disconnectSocket } from '../services/socket';
-import { chatApi, Message, Room } from '../services/api';
+import { chatApi, voiceApi, Message, Room } from '../services/api';
 import { Socket } from 'socket.io-client';
 
 const MESSAGES_LIMIT = 50;
@@ -24,6 +27,7 @@ const MESSAGES_LIMIT = 50;
 export default function ChatScreen({ route }: any) {
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [room, setRoom] = useState<Room>(initialRoom);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -36,6 +40,10 @@ export default function ChatScreen({ route }: any) {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [playingAudio, setPlayingAudio] = useState<number | null>(null);
+  const [uploadingVoice, setUploadingVoice] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -199,6 +207,72 @@ export default function ChatScreen({ route }: any) {
     }
   };
 
+  const startRecording = async () => {
+    try {
+      const perm = await Audio.requestPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permission needed', 'Allow microphone access to record voice');
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording: newRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+      );
+      setRecording(newRecording);
+      setIsRecording(true);
+    } catch {
+      Alert.alert('Error', 'Could not start recording');
+    }
+  };
+
+  const stopRecording = async () => {
+    if (!recording) return;
+    setIsRecording(false);
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecording(null);
+
+      if (!uri) return;
+
+      setUploadingVoice(true);
+      const { data } = await voiceApi.upload(room.id, uri);
+      setMessages((prev) => [data, ...prev]);
+    } catch {
+      Alert.alert('Error', 'Failed to send voice message');
+    } finally {
+      setUploadingVoice(false);
+    }
+  };
+
+  const playVoice = async (messageId: number, audioUrl: string) => {
+    try {
+      if (playingAudio === messageId) {
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+        setPlayingAudio(null);
+        return;
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: audioUrl },
+        { shouldPlay: true },
+      );
+      setPlayingAudio(messageId);
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && !status.isPlaying) {
+          setPlayingAudio(null);
+        }
+      });
+    } catch {
+      Alert.alert('Error', 'Could not play voice message');
+    }
+  };
+
   const handleLongPress = (message: Message) => {
     if (message.senderId !== user?.id) return;
     setSelectedMessage(message);
@@ -286,8 +360,8 @@ export default function ChatScreen({ route }: any) {
     if (item.isDeleted) {
       return (
         <View style={[styles.messageRow, isMine && styles.myMessageRow]}>
-          <View style={[styles.messageBubble, styles.deletedBubble]}>
-            <Text style={styles.deletedText}>This message was deleted</Text>
+          <View style={[styles.messageBubble, { backgroundColor: colors.border }, styles.deletedBubble]}>
+            <Text style={[styles.deletedText, { color: colors.textSecondary }]}>This message was deleted</Text>
           </View>
         </View>
       );
@@ -299,9 +373,14 @@ export default function ChatScreen({ route }: any) {
         onLongPress={() => handleLongPress(item)}
         delayLongPress={500}
       >
-        <View style={[styles.messageBubble, isMine && styles.myBubble]}>
+        <View style={[
+          styles.messageBubble,
+          isMine
+            ? { backgroundColor: colors.bubbleMine }
+            : { backgroundColor: colors.bubbleOther },
+        ]}>
           {!isMine && (
-            <Text style={styles.senderName}>{item.sender?.username}</Text>
+            <Text style={[styles.senderName, { color: colors.primary }]}>{item.sender?.username}</Text>
           )}
           {item.type === 'image' ? (
             <Image
@@ -309,18 +388,30 @@ export default function ChatScreen({ route }: any) {
               style={styles.messageImage}
               resizeMode="cover"
             />
+          ) : item.type === 'voice' ? (
+            <TouchableOpacity
+              style={[styles.voiceBubble, { backgroundColor: colors.surface }]}
+              onPress={() => playVoice(item.id, item.content)}
+            >
+              <Ionicons
+                name={playingAudio === item.id ? 'pause-circle' : 'play-circle'}
+                size={28}
+                color={colors.primary}
+              />
+              <Text style={[styles.voiceText, { color: colors.text }]}>Voice message</Text>
+            </TouchableOpacity>
           ) : (
-            <Text style={[styles.messageText, isMine && styles.myMessageText]}>
+            <Text style={[styles.messageText, { color: colors.text }]}>
               {item.content}
             </Text>
           )}
           <View style={styles.messageFooter}>
             {item.isEdited && !item.isDeleted && (
-              <Text style={styles.edited}>edited </Text>
+              <Text style={[styles.edited, { color: colors.textSecondary }]}>edited </Text>
             )}
-            <Text style={[styles.time, isMine && styles.myTime]}>{time}</Text>
+            <Text style={[styles.time, { color: colors.textSecondary }]}>{time}</Text>
             {isMine && (
-              <Text style={[styles.status, item.isRead && styles.statusRead]}>
+              <Text style={[styles.status, item.isRead && { color: colors.online }]}>
                 {item.isRead ? '\u2713\u2713' : '\u2713'}
               </Text>
             )}
@@ -328,7 +419,7 @@ export default function ChatScreen({ route }: any) {
         </View>
       </TouchableOpacity>
     );
-  }, [user?.id]);
+  }, [user?.id, colors, playingAudio]);
 
   const otherParticipants = room.participants?.filter((p) => p.id !== user?.id) || [];
   const typingNames = Array.from(typingUsers)
@@ -337,31 +428,31 @@ export default function ChatScreen({ route }: any) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
         <View style={styles.headerInfo}>
           <View style={styles.headerRow}>
             {getOtherAvatar() ? (
               <Image source={{ uri: getOtherAvatar()! }} style={styles.headerAvatar} />
             ) : (
-              <View style={styles.headerAvatarPlaceholder}>
+              <View style={[styles.headerAvatarPlaceholder, { backgroundColor: colors.primaryDark }]}>
                 <Text style={styles.headerAvatarText}>
                   {getRoomName().substring(0, 2).toUpperCase()}
                 </Text>
               </View>
             )}
             <View style={styles.headerText}>
-              <Text style={styles.headerTitle}>{getRoomName()}</Text>
+              <Text style={[styles.headerTitle, { color: colors.textInverse }]}>{getRoomName()}</Text>
               {!room.isGroup && isOtherOnline() && !typingNames.length && (
-                <Text style={styles.onlineStatus}>online</Text>
+                <Text style={[styles.onlineStatus, { color: colors.background }]}>online</Text>
               )}
               {!socketConnected && (
                 <Text style={styles.disconnected}>Connecting...</Text>
               )}
               {typingNames.length > 0 && (
-                <Text style={styles.typingText}>
+                <Text style={[styles.typingText, { color: colors.background }]}>
                   {typingNames.join(', ')} typing...
                 </Text>
               )}
@@ -371,8 +462,8 @@ export default function ChatScreen({ route }: any) {
       </View>
 
       {loadingMessages ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#075E54" />
+        <View style={[styles.center, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
@@ -388,36 +479,49 @@ export default function ChatScreen({ route }: any) {
           ListFooterComponent={
             loadingMore ? (
               <View style={styles.loadingMore}>
-                <ActivityIndicator size="small" color="#075E54" />
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : null
           }
           ListEmptyComponent={
             <View style={styles.emptyMessages}>
-              <Text style={styles.emptyText}>No messages yet. Say hi!</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No messages yet. Say hi!</Text>
             </View>
           }
         />
       )}
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { backgroundColor: colors.inputBg, borderTopColor: colors.border }]}>
         {editingMessage && (
           <TouchableOpacity onPress={cancelEdit} style={styles.cancelEdit}>
-            <Text style={styles.cancelEditText}>Cancel</Text>
+            <Text style={[styles.cancelEditText, { color: colors.primary }]}>Cancel</Text>
           </TouchableOpacity>
         )}
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.text }]}
           placeholder={editingMessage ? 'Edit message...' : 'Type a message...'}
-          placeholderTextColor="#888"
+          placeholderTextColor={colors.textSecondary}
           value={inputText}
           onChangeText={handleTyping}
           multiline
         />
-        <TouchableOpacity style={styles.iconButton} onPress={pickImage}>
-          <Text style={styles.iconText}>+</Text>
+        <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.primary }]} onPress={pickImage}>
+          <Ionicons name="image" size={18} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+        {uploadingVoice ? (
+          <View style={[styles.iconButton, { backgroundColor: colors.primary }]}>
+            <ActivityIndicator size="small" color="#fff" />
+          </View>
+        ) : isRecording ? (
+          <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.danger }]} onPress={stopRecording}>
+            <Ionicons name="stop" size={18} color="#fff" />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.primary }]} onPress={startRecording}>
+            <Ionicons name="mic" size={18} color="#fff" />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={[styles.sendButton, { backgroundColor: colors.primary }]} onPress={sendMessage}>
           <Text style={styles.sendText}>
             {editingMessage ? 'Save' : 'Send'}
           </Text>
@@ -430,12 +534,12 @@ export default function ChatScreen({ route }: any) {
           activeOpacity={1}
           onPress={() => setMenuVisible(false)}
         >
-          <View style={styles.menuContainer}>
+          <View style={[styles.menuContainer, { backgroundColor: colors.surface }]}>
             <TouchableOpacity style={styles.menuItem} onPress={handleEdit}>
-              <Text style={styles.menuItemText}>Edit</Text>
+              <Text style={[styles.menuItemText, { color: colors.text }]}>Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.menuItem} onPress={handleDelete}>
-              <Text style={[styles.menuItemText, { color: '#ff4444' }]}>Delete</Text>
+              <Text style={[styles.menuItemText, { color: colors.danger }]}>Delete</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -445,10 +549,9 @@ export default function ChatScreen({ route }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ECE5DD' },
+  container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
-    backgroundColor: '#075E54',
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 12,
@@ -458,52 +561,52 @@ const styles = StyleSheet.create({
   headerAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 10 },
   headerAvatarPlaceholder: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#128C7E', justifyContent: 'center', alignItems: 'center', marginRight: 10,
+    justifyContent: 'center', alignItems: 'center', marginRight: 10,
   },
   headerAvatarText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   headerText: { flex: 1 },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  onlineStatus: { color: '#dcf8c6', fontSize: 12, fontWeight: '600' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold' },
+  onlineStatus: { fontSize: 12, fontWeight: '600' },
   disconnected: { color: '#ffcc00', fontSize: 12 },
-  typingText: { color: '#dcf8c6', fontSize: 12, fontStyle: 'italic' },
+  typingText: { fontSize: 12, fontStyle: 'italic' },
   messagesList: { flex: 1 },
   messagesContent: { paddingHorizontal: 10, paddingVertical: 8 },
   messageRow: { flexDirection: 'row', marginBottom: 6 },
   myMessageRow: { justifyContent: 'flex-end' },
   messageBubble: {
     maxWidth: '75%',
-    backgroundColor: '#fff',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  myBubble: { backgroundColor: '#DCF8C6' },
-  deletedBubble: { backgroundColor: '#e0e0e0', opacity: 0.7 },
-  deletedText: { fontSize: 14, color: '#999', fontStyle: 'italic' },
-  senderName: { fontSize: 12, fontWeight: 'bold', color: '#075E54', marginBottom: 2 },
-  messageText: { fontSize: 15, color: '#333' },
-  myMessageText: { color: '#333' },
+  deletedBubble: { opacity: 0.7 },
+  deletedText: { fontSize: 14, fontStyle: 'italic' },
+  senderName: { fontSize: 12, fontWeight: 'bold', marginBottom: 2 },
+  messageText: { fontSize: 15 },
   messageImage: { width: 200, height: 200, borderRadius: 8, marginVertical: 4 },
+  voiceBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 8,
+    minWidth: 120,
+  },
+  voiceText: { fontSize: 14, marginLeft: 8 },
   messageFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 },
-  edited: { fontSize: 11, color: '#888', fontStyle: 'italic', marginRight: 2 },
-  time: { fontSize: 11, color: '#888' },
-  myTime: { color: '#666' },
-  status: { fontSize: 11, color: '#666', marginLeft: 4 },
-  statusRead: { color: '#34B7F1' },
+  edited: { fontSize: 11, fontStyle: 'italic', marginRight: 2 },
+  time: { fontSize: 11 },
+  status: { fontSize: 11, marginLeft: 4 },
   loadingMore: { paddingVertical: 10, alignItems: 'center' },
   emptyMessages: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 },
-  emptyText: { color: '#888', fontSize: 14 },
+  emptyText: { fontSize: 14 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 8,
-    backgroundColor: '#f0f0f0',
     borderTopWidth: 0.5,
-    borderTopColor: '#ddd',
   },
   input: {
     flex: 1,
-    backgroundColor: '#fff',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -512,12 +615,10 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#075E54', justifyContent: 'center', alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
     marginLeft: 6,
   },
-  iconText: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginTop: -2 },
   sendButton: {
-    backgroundColor: '#075E54',
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -525,9 +626,9 @@ const styles = StyleSheet.create({
   },
   sendText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   cancelEdit: { paddingRight: 8 },
-  cancelEditText: { color: '#075E54', fontWeight: '600', fontSize: 13 },
+  cancelEditText: { fontWeight: '600', fontSize: 13 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  menuContainer: { backgroundColor: '#fff', borderRadius: 12, padding: 8, minWidth: 160 },
+  menuContainer: { borderRadius: 12, padding: 8, minWidth: 160 },
   menuItem: { paddingVertical: 14, paddingHorizontal: 20 },
-  menuItemText: { fontSize: 16, color: '#333' },
+  menuItemText: { fontSize: 16 },
 });

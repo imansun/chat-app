@@ -11,9 +11,11 @@ import {
   Platform,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function LoginScreen({ navigation }: any) {
   const { login } = useAuth();
+  const { colors } = useTheme();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,11 +37,11 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.primary }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
-        <Text style={styles.logo}>💬 Chat App</Text>
+        <Text style={[styles.logo]}>{'>'} Chat App</Text>
         <Text style={styles.subtitle}>Welcome back!</Text>
       </View>
 
@@ -81,7 +83,7 @@ export default function LoginScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#075E54', justifyContent: 'center', padding: 20 },
+  container: { flex: 1, justifyContent: 'center', padding: 20 },
   header: { alignItems: 'center', marginBottom: 40 },
   logo: { fontSize: 32, fontWeight: 'bold', color: '#fff' },
   subtitle: { fontSize: 16, color: '#ddd', marginTop: 8 },
