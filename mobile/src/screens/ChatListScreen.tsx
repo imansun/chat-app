@@ -31,7 +31,8 @@ export default function ChatListScreen({ navigation }: any) {
     try {
       const { data } = await chatApi.getRooms();
       setRooms(data);
-    } catch {
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to load chats');
     } finally {
       setLoading(false);
     }
@@ -47,7 +48,8 @@ export default function ChatListScreen({ navigation }: any) {
     try {
       const { data } = await userApi.search(q);
       setSearchResults(data.filter((u) => u.id !== user?.id));
-    } catch {
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'Search failed');
     } finally {
       setSearching(false);
     }
@@ -78,22 +80,35 @@ export default function ChatListScreen({ navigation }: any) {
     return 'No messages yet';
   };
 
-  const renderRoom = ({ item }: { item: Room }) => (
-    <TouchableOpacity
-      style={styles.roomItem}
-      onPress={() => navigation.navigate('Chat', { room: item })}
-    >
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {getRoomName(item).substring(0, 2).toUpperCase()}
-        </Text>
-      </View>
-      <View style={styles.roomInfo}>
-        <Text style={styles.roomName}>{getRoomName(item)}</Text>
-        <Text style={styles.lastMessage}>{getLastMessage(item)}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const getOtherParticipant = (room: Room) => {
+    if (room.isGroup) return null;
+    return room.participants?.find((p) => p.id !== user?.id) || null;
+  };
+
+  const renderRoom = ({ item }: { item: Room }) => {
+    const other = getOtherParticipant(item);
+    const isOnline = other?.isOnline || false;
+
+    return (
+      <TouchableOpacity
+        style={styles.roomItem}
+        onPress={() => navigation.navigate('Chat', { room: item })}
+      >
+        <View style={styles.avatarWrapper}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {getRoomName(item).substring(0, 2).toUpperCase()}
+            </Text>
+          </View>
+          {!item.isGroup && isOnline && <View style={styles.onlineDot} />}
+        </View>
+        <View style={styles.roomInfo}>
+          <Text style={styles.roomName}>{getRoomName(item)}</Text>
+          <Text style={styles.lastMessage}>{getLastMessage(item)}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -216,6 +231,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: '#ddd',
   },
+  avatarWrapper: {
+    width: 48,
+    height: 48,
+    marginRight: 14,
+  },
   avatar: {
     width: 48,
     height: 48,
@@ -223,7 +243,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#075E54',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#4CAF50',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   avatarText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   roomInfo: { flex: 1 },

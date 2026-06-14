@@ -9,11 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { connectSocket, getSocket, disconnectSocket } from '../services/socket';
+import { connectSocket, disconnectSocket } from '../services/socket';
 import { chatApi, Message, Room } from '../services/api';
 import { Socket } from 'socket.io-client';
+
+const MESSAGES_LIMIT = 50;
 
 export default function ChatScreen({ route }: any) {
   const { room: initialRoom } = route.params;
@@ -24,6 +27,9 @@ export default function ChatScreen({ route }: any) {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<number>>(new Set());
   const [loadingMessages, setLoadingMessages] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const flatListRef = useRef<FlatList>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -34,6 +40,12 @@ export default function ChatScreen({ route }: any) {
       disconnectSocket();
     };
   }, []);
+
+  useEffect(() => {
+    if (!loadingMessages && messages.length > 0) {
+      markMessagesAsRead();
+    }
+  }, [loadingMessages, messages.length]);
 
   const initSocket = async () => {
     try {
@@ -51,10 +63,15 @@ export default function ChatScreen({ route }: any) {
 
       socket.on('message:new', (message: Message) => {
         setMessages((prev) => {
-          const exists = prev.find((m) => m.id === message.id);
-          if (exists) return prev;
+          if (prev.some((m) => m.id === message.id)) return prev;
           return [message, ...prev];
         });
+      });
+
+      socket.on('message:read', ({ messageId }: { messageId: number }) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === messageId ? { ...m, isRead: true } : m)),
+        );
       });
 
       socket.on('typing:start', ({ userId: typingUserId }: { userId: number }) => {
@@ -77,14 +94,45 @@ export default function ChatScreen({ route }: any) {
 
   const fetchMessages = async () => {
     try {
-      const { data: roomData } = await chatApi.getRoom(room.id);
+      const [{ data: roomData }, { data: messagesData }] = await Promise.all([
+        chatApi.getRoom(room.id),
+        chatApi.getRoomMessages(room.id, MESSAGES_LIMIT, 0),
+      ]);
       setRoom(roomData);
-
-      const { data: messagesData } = await chatApi.getRoomMessages(room.id);
       setMessages(messagesData);
-    } catch {
+      setHasMore(messagesData.length >= MESSAGES_LIMIT);
+      setOffset(messagesData.length);
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to load messages');
     } finally {
       setLoadingMessages(false);
+    }
+  };
+
+  const markMessagesAsRead = () => {
+    if (!socketRef.current) return;
+    const unread = messages.filter(
+      (m) => m.senderId !== user?.id && !m.isRead,
+    );
+    unread.forEach((m) => {
+      socketRef.current?.emit('message:read', {
+        messageId: m.id,
+        roomId: room.id,
+      });
+    });
+  };
+
+  const loadMore = async () => {
+    if (!hasMore || loadingMore || loadingMessages) return;
+    setLoadingMore(true);
+    try {
+      const { data } = await chatApi.getRoomMessages(room.id, MESSAGES_LIMIT, offset);
+      setMessages((prev) => [...prev, ...data]);
+      setHasMore(data.length >= MESSAGES_LIMIT);
+      setOffset((prev) => prev + data.length);
+    } catch {
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -127,8 +175,19 @@ export default function ChatScreen({ route }: any) {
     return other?.username || 'Chat';
   };
 
+  const isOtherOnline = () => {
+    if (room.isGroup) return false;
+    const other = room.participants?.find((p) => p.id !== user?.id);
+    return other?.isOnline || false;
+  };
+
   const renderMessage = ({ item }: { item: Message }) => {
     const isMine = item.senderId === user?.id;
+    const time = new Date(item.createdAt).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
     return (
       <View style={[styles.messageRow, isMine && styles.myMessageRow]}>
         <View style={[styles.messageBubble, isMine && styles.myBubble]}>
@@ -138,12 +197,14 @@ export default function ChatScreen({ route }: any) {
           <Text style={[styles.messageText, isMine && styles.myMessageText]}>
             {item.content}
           </Text>
-          <Text style={[styles.time, isMine && styles.myTime]}>
-            {new Date(item.createdAt).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
+          <View style={styles.messageFooter}>
+            <Text style={[styles.time, isMine && styles.myTime]}>{time}</Text>
+            {isMine && (
+              <Text style={[styles.status, item.isRead && styles.statusRead]}>
+                {item.isRead ? '\u2713\u2713' : '\u2713'}
+              </Text>
+            )}
+          </View>
         </View>
       </View>
     );
@@ -162,6 +223,9 @@ export default function ChatScreen({ route }: any) {
       <View style={styles.header}>
         <View style={styles.headerInfo}>
           <Text style={styles.headerTitle}>{getRoomName()}</Text>
+          {!room.isGroup && isOtherOnline() && !typingNames.length && (
+            <Text style={styles.onlineStatus}>online</Text>
+          )}
           {!socketConnected && (
             <Text style={styles.disconnected}>Connecting...</Text>
           )}
@@ -185,7 +249,16 @@ export default function ChatScreen({ route }: any) {
           renderItem={renderMessage}
           style={styles.messagesList}
           inverted
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
           contentContainerStyle={styles.messagesContent}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.loadingMore}>
+                <ActivityIndicator size="small" color="#075E54" />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.emptyMessages}>
               <Text style={styles.emptyText}>No messages yet. Say hi!</Text>
@@ -222,6 +295,7 @@ const styles = StyleSheet.create({
   },
   headerInfo: {},
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  onlineStatus: { color: '#dcf8c6', fontSize: 12, fontWeight: '600' },
   disconnected: { color: '#ffcc00', fontSize: 12 },
   typingText: { color: '#dcf8c6', fontSize: 12, fontStyle: 'italic' },
   messagesList: { flex: 1 },
@@ -239,8 +313,12 @@ const styles = StyleSheet.create({
   senderName: { fontSize: 12, fontWeight: 'bold', color: '#075E54', marginBottom: 2 },
   messageText: { fontSize: 15, color: '#333' },
   myMessageText: { color: '#333' },
-  time: { fontSize: 11, color: '#888', textAlign: 'right', marginTop: 4 },
+  messageFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 },
+  time: { fontSize: 11, color: '#888' },
   myTime: { color: '#666' },
+  status: { fontSize: 11, color: '#666', marginLeft: 4 },
+  statusRead: { color: '#34B7F1' },
+  loadingMore: { paddingVertical: 10, alignItems: 'center' },
   emptyMessages: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 },
   emptyText: { color: '#888', fontSize: 14 },
   inputContainer: {
