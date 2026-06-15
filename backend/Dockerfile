@@ -12,7 +12,7 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-RUN mkdir -p uploads/avatars uploads/messages
+RUN mkdir -p uploads/avatars uploads/messages uploads/stories
 
 COPY package*.json ./
 RUN npm ci --only=production

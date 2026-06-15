@@ -42,7 +42,7 @@ export default function ChatScreen({ route }: any) {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [recording, setRecording] = useState<any | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [playingAudio, setPlayingAudio] = useState<number | null>(null);
   const [uploadingVoice, setUploadingVoice] = useState(false);
@@ -315,7 +315,7 @@ export default function ChatScreen({ route }: any) {
         { shouldPlay: true },
       );
       setPlayingAudio(messageId);
-      sound.setOnPlaybackStatusUpdate((status) => {
+      sound.setOnPlaybackStatusUpdate((status: any) => {
         if (status.isLoaded && !status.isPlaying) {
           setPlayingAudio(null);
         }

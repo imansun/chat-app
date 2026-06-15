@@ -130,13 +130,13 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const createPeerConnection = async () => {
-    const webrtc = requireWebRTC();
-    if (!webrtc) return null;
-    const { RTCPeerConnection: RTC } = webrtc;
+    const rnwebrtc = requireWebRTC();
+    if (!rnwebrtc) return null;
+    const { RTCPeerConnection: RTC } = rnwebrtc;
     const pc = new RTC(ICE_SERVERS);
     pcRef.current = pc;
 
-    pc.onicecandidate = (event) => {
+    pc.onicecandidate = (event: any) => {
       if (event.candidate) {
         const socket = getCallSocket();
         socket?.emit('call:ice-candidate', {
@@ -146,21 +146,21 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    pc.ontrack = (event) => {
+    pc.ontrack = (event: any) => {
       remoteStreamRef.current = event.streams[0];
       setCall((prev) => ({ ...prev, status: 'active' }));
     };
 
-    const webrtc = requireWebRTC();
-    if (!webrtc) return null;
+    const webrtc2 = requireWebRTC();
+    if (!webrtc2) return null;
 
-    const stream = await webrtc.mediaDevices.getUserMedia({
+    const stream = await webrtc2.mediaDevices.getUserMedia({
       audio: true,
       video: call.type === 'video',
     });
     setLocalStream(stream);
 
-    stream.getTracks().forEach((track) => {
+    stream.getTracks().forEach((track: any) => {
       if (pc.signalingState !== 'closed') {
         pc.addTrack(track, stream);
       }
@@ -272,7 +272,7 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
       pcRef.current = null;
     }
     if (localStream) {
-      localStream.getTracks().forEach((t) => t.stop());
+      localStream.getTracks().forEach((t: any) => t.stop());
       setLocalStream(null);
     }
     remoteStreamRef.current = null;
@@ -285,13 +285,13 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
   const startDurationTimer = (callId: number) => {
     if (durationRef.current) clearInterval(durationRef.current);
     durationRef.current = setInterval(() => {
-      setCall((prev) => prev.duration + 1);
+      setCall((prev) => ({ ...prev, duration: prev.duration + 1 }));
     }, 1000);
   };
 
   const toggleMute = () => {
     setIsMuted((prev) => {
-      localStream?.getAudioTracks().forEach((t) => { t.enabled = prev; });
+      localStream?.getAudioTracks().forEach((t: any) => { t.enabled = prev; });
       return !prev;
     });
   };
@@ -302,7 +302,7 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
 
   const toggleVideo = () => {
     setIsVideoOn((prev) => {
-      localStream?.getVideoTracks().forEach((t) => { t.enabled = !prev; });
+      localStream?.getVideoTracks().forEach((t: any) => { t.enabled = !prev; });
       return !prev;
     });
   };

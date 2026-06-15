@@ -69,7 +69,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    getItem('theme').then((val) => {
+    getItem('theme').then((val: string | null) => {
       if (val === 'dark') setIsDark(true);
     });
   }, []);
